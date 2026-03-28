@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Магазин 3D-печати</title>
+
+    <!-- Firebase (тот же проект, что и Manager) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+</head>
+<body class="store-page">
+    <!-- Шапка магазина -->
+    <header id="storeHeader" class="store-header">
+        <div class="store-header-inner">
+            <button type="button" id="storeHamburgerBtn" class="store-hamburger-btn hidden" aria-label="Категории"><span class="store-hamburger-icon"><svg class="store-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></span><span class="store-hamburger-label">Меню</span></button>
+            <div class="store-header-center">
+                <a href="#" id="storeLogoLink" class="store-logo-link">
+                    <img id="storeLogoImg" src="" alt="" class="store-header-logo-img hidden">
+                    <h1 id="storeTitle">Магазин</h1>
+                </a>
+                <p id="storeDescription" class="store-description">Загрузка...</p>
+            </div>
+            <div class="store-header-right">
+                <div class="store-header-search-wrap hidden" id="storeSearchWrap">
+                    <button type="button" id="storeSearchToggle" class="store-search-toggle" aria-label="Поиск"><svg class="store-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></button>
+                    <div class="store-search-expand">
+                        <input type="text" id="storeSearchInput" class="store-search-input" placeholder="Поиск..." autocomplete="off">
+                        <button type="button" id="storeSearchClose" class="store-search-close" aria-label="Закрыть">&times;</button>
+                    </div>
+                    <div id="storeSearchDropdown" class="store-search-dropdown hidden"></div>
+                </div>
+                <button type="button" id="storeFavoritesBtn" class="store-favorites-btn hidden" title="Избранное" aria-label="Избранное">
+                    <span class="store-favorites-icon"><svg class="store-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
+                    <span id="storeFavoritesCount" class="store-favorites-count">0</span>
+                </button>
+                <button type="button" id="storeAuthBtn" class="store-auth-btn hidden" title="Вход" aria-label="Личный кабинет">
+                    <span class="store-auth-icon store-auth-icon-outline">
+                        <svg class="store-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </span>
+                    <span class="store-auth-icon store-auth-icon-filled">
+                        <svg class="store-icon-svg store-icon-filled" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                    </span>
+                </button>
+                <button type="button" id="storeCartBtn" class="store-cart-btn hidden" title="Корзина" aria-label="Корзина">
+                    <span class="store-cart-icon"><svg class="store-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span>
+                    <span id="storeCartCount" class="store-cart-count">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+    <div id="storeHeaderSentinel" aria-hidden="true" style="height:1px;width:1px;visibility:hidden;pointer-events:none;"></div>
+
+    <!-- Панель категорий (выезжает слева) -->
+    <div id="storeCategoriesDrawer" class="store-categories-drawer" aria-hidden="true">
+        <div class="store-categories-drawer-backdrop"></div>
+        <div class="store-categories-drawer-panel">
+            <div class="store-categories-drawer-header">
+                <h3>Категории</h3>
+                <button type="button" class="store-categories-drawer-close" aria-label="Закрыть">&times;</button>
+            </div>
+            <div id="storeCategoriesDrawerList" class="store-categories-drawer-list"></div>
+        </div>
+    </div>
+
+    <!-- Баннер (между шапкой и контентом) -->
+    <div id="storeBanner" class="store-banner hidden">
+        <img id="storeBannerImg" src="" alt="">
+        <div id="storeBannerDesc" class="store-banner-desc"></div>
+    </div>
+
+    <!-- Контейнер Store SPA -->
+    <main id="storeRoot" class="store-root">
+        <!-- Состояние: загрузка / магазин не найден / каталог (Фаза 4+) -->
+        <div id="storeLoading" class="store-loading">
+            <p id="storeLoadingText">Загрузка магазина...</p>
+        </div>
+        <div id="storeNotFound" class="store-not-found hidden">
+            <h2>Магазин не найден</h2>
+            <p id="storeNotFoundReason">Поддомен не указан или магазин не зарегистрирован.</p>
+        </div>
+        <div id="storeMainPage" class="store-main-page hidden">
+            <!-- Главная: Новинки, Популярные, Все товары -->
+        </div>
+        <div id="storeCategoryPage" class="store-category-page hidden">
+            <nav id="storeBreadcrumbs" class="store-breadcrumbs"></nav>
+            <div id="storeCategoryCatalog" class="store-catalog store-catalog-tiles store-category-catalog"></div>
+        </div>
+        <div id="storeFavoritesPage" class="store-favorites-page hidden">
+            <div class="store-favorites-page-header">
+                <a href="#" id="storeBackFromFavorites" class="store-back-link">← Назад в каталог</a>
+                <h2>Избранное</h2>
+            </div>
+            <div id="storeFavoritesList" class="store-catalog store-catalog-tiles"></div>
+            <div id="storeFavoritesEmpty" class="store-catalog-empty hidden">В избранном пока нет товаров</div>
+        </div>
+        <div id="storeAccountPage" class="store-account-page hidden">
+            <div class="store-account-page-header">
+                <div class="store-account-page-header-left">
+                    <a href="#" id="storeBackFromAccount" class="store-back-link">← Назад в каталог</a>
+                    <h2>Личный кабинет</h2>
+                </div>
+                <button type="button" class="btn-secondary store-account-logout-btn" id="storeAccountLogoutBtn">Выйти из аккаунта</button>
+            </div>
+            <div id="storeAccountOrders" class="store-account-orders">
+                <h3>История заказов</h3>
+                <div id="storeAccountOrdersList"></div>
+                <p id="storeAccountOrdersEmpty" class="store-account-empty hidden">Заказов пока нет</p>
+            </div>
+        </div>
+        <div id="storeCartPage" class="store-cart-page hidden">
+            <div class="store-cart-page-header">
+                <a href="#" id="storeBackToCatalog" class="store-back-link">← Назад в каталог</a>
+                <h2>Корзина</h2>
+            </div>
+            <div id="storeCartList" class="store-cart-list"></div>
+            <div id="storeCartEmpty" class="store-cart-empty hidden">Корзина пуста</div>
+            <div id="storeCartFooter" class="store-cart-footer hidden">
+                <div class="store-cart-comment-row">
+                    <label for="storeCartComment">Комментарий к заказу</label>
+                    <textarea id="storeCartComment" rows="2" placeholder="Пожелания по доставке"></textarea>
+                </div>
+                <div class="store-cart-total">Итого: <span id="storeCartTotalVal">0</span> ₽</div>
+                <button type="button" class="btn-primary store-checkout-btn" id="storeCheckoutBtn">Оформить заказ</button>
+                <p class="store-cart-footer-note">Менеджер свяжется с вами по вашему email. Для коммуникации в мессенджере укажите удобный для связи мессенджер и ваш никнейм в поле комментария или напишите нам в телеграм с номером вашего заказа.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Выдвижная панель корзины -->
+    <div id="storeCartDrawer" class="store-cart-drawer" aria-hidden="true">
+        <div class="store-cart-drawer-backdrop"></div>
+        <div class="store-cart-drawer-panel">
+            <div class="store-cart-drawer-header">
+                <h3>Корзина</h3>
+                <button type="button" class="store-cart-drawer-close" aria-label="Закрыть">&times;</button>
+            </div>
+            <div id="storeCartDrawerList" class="store-cart-drawer-list"></div>
+            <div id="storeCartDrawerEmpty" class="store-cart-drawer-empty">Корзина пуста</div>
+            <div id="storeCartDrawerFooter" class="store-cart-drawer-footer hidden">
+                <div class="store-cart-drawer-total">Итого: <span id="storeCartDrawerTotalVal">0</span> ₽</div>
+                <button type="button" id="storeCartDrawerToPage" class="btn-primary store-cart-drawer-to-page">Перейти в корзину</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Форма оформления заказа -->
+    <div id="storeCheckoutModal" class="store-checkout-modal hidden">
+        <div class="store-checkout-backdrop"></div>
+        <div class="store-checkout-form-wrap">
+            <h3>Оформление заказа</h3>
+            <form id="storeCheckoutForm">
+                <div class="store-checkout-row">
+                    <label for="storeBuyerName">Имя (необязательно)</label>
+                    <input type="text" id="storeBuyerName" placeholder="Как к вам обращаться">
+                </div>
+                <div class="store-checkout-row">
+                    <label for="storeBuyerEmail">Email *</label>
+                    <input type="email" id="storeBuyerEmail" required placeholder="email@example.com">
+                </div>
+                <div class="store-checkout-row">
+                    <label for="storeBuyerPhone">Телефон</label>
+                    <input type="tel" id="storeBuyerPhone" placeholder="+7 900 123-45-67">
+                </div>
+                <div class="store-checkout-row">
+                    <label for="storeBuyerComment">Комментарий</label>
+                    <textarea id="storeBuyerComment" rows="2" placeholder="Пожелания по доставке"></textarea>
+                </div>
+                <button type="submit" class="btn-primary store-checkout-submit-btn" id="storeCheckoutSubmitBtn">Отправить заказ</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модалка карточки товара -->
+    <div id="storeProductModal" class="store-product-modal hidden">
+        <div class="store-product-modal-backdrop"></div>
+        <div class="store-product-modal-content">
+            <div class="store-product-modal-nav">
+                <button type="button" class="store-product-modal-close" aria-label="Закрыть">&times;</button>
+            </div>
+            <div class="store-product-modal-body">
+                <div class="store-product-modal-gallery">
+                    <div class="store-product-modal-main">
+                        <img id="storeProductModalImg" src="" alt="" class="store-product-modal-main-img store-product-modal-img-zoomable">
+                        <div id="storeProductModalPlaceholder" class="store-product-modal-placeholder">📦</div>
+                        <button type="button" class="store-product-slider-prev" aria-label="Предыдущее">‹</button>
+                        <button type="button" class="store-product-slider-next" aria-label="Следующее">›</button>
+                    </div>
+                    <div id="storeProductModalThumbs" class="store-product-modal-thumbs"></div>
+                </div>
+                <div class="store-product-modal-info">
+                    <div id="storeProductModalBadges" class="store-product-modal-badges"></div>
+                    <div class="store-product-modal-title-row">
+                        <h2 id="storeProductModalTitle" class="store-product-modal-title"></h2>
+                        <button type="button" id="storeProductModalFavBtn" class="store-product-modal-fav" title="Добавить в избранное" aria-label="Избранное">
+                            <svg class="store-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                        </button>
+                    </div>
+                    <p id="storeProductModalArticle" class="store-product-modal-article"></p>
+                    <div class="store-product-modal-price-row">
+                        <div id="storeProductModalPrice" class="store-product-modal-price"></div>
+                        <div class="store-product-modal-qty-wrap">
+                            <label for="storeProductModalQty">Кол-во</label>
+                            <input type="number" id="storeProductModalQty" min="1" max="999" value="1" class="store-product-modal-qty">
+                        </div>
+                        <button type="button" id="storeProductModalAddBtn" class="btn-primary store-product-modal-add">Добавить в корзину</button>
+                    </div>
+                    <div id="storeProductModalCartHint" class="store-product-modal-cart-hint hidden" role="status" aria-live="polite" aria-atomic="true">
+                        <span class="store-product-modal-cart-hint-main">
+                            <svg class="store-product-modal-cart-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                            <span id="storeProductModalCartHintText"></span>
+                        </span>
+                        <a href="#cart" id="storeProductModalCartHintLink" class="store-product-modal-cart-hint-link">Перейти в корзину</a>
+                    </div>
+                    <div id="storeProductModalDesc" class="store-product-modal-desc"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Полноэкранный просмотр изображения -->
+    <div id="storeProductImageFullscreen" class="store-product-image-fullscreen hidden">
+        <div class="store-product-image-fullscreen-backdrop"></div>
+        <img id="storeProductImageFullscreenImg" src="" alt="" class="store-product-image-fullscreen-img">
+        <button type="button" class="store-product-image-fullscreen-close" aria-label="Закрыть">&times;</button>
+    </div>
+
+    <!-- Модалка "О магазине" (баннер, описание, соцсети, оферта) -->
+    <div id="storeAboutModal" class="store-about-modal hidden">
+        <div class="store-about-modal-backdrop"></div>
+        <div class="store-about-modal-content">
+            <button type="button" class="store-about-modal-close" aria-label="Закрыть">&times;</button>
+            <div id="storeAboutModalBody"></div>
+        </div>
+    </div>
+
+    <!-- Подвал магазина -->
+    <footer id="storeFooter" class="store-footer hidden">
+        <div id="storeFooterLinks" class="store-footer-links"></div>
+    </footer>
+
+    <!-- Модалка авторизации -->
+    <div id="storeAuthModal" class="store-auth-modal hidden">
+        <div class="store-auth-modal-backdrop"></div>
+        <div class="store-auth-modal-content">
+            <button type="button" class="store-auth-modal-close" aria-label="Закрыть">&times;</button>
+            <div id="storeAuthLoginForm" class="store-auth-form">
+                <h3>Вход</h3>
+                <form id="storeLoginForm">
+                    <input type="email" id="storeLoginEmail" placeholder="Email" required>
+                    <input type="password" id="storeLoginPassword" placeholder="Пароль" required>
+                    <button type="submit" class="btn-primary">Войти</button>
+                </form>
+                <p class="store-auth-switch">Нет аккаунта? <a href="#" id="storeAuthShowRegister">Регистрация</a></p>
+            </div>
+            <div id="storeAuthRegisterForm" class="store-auth-form hidden">
+                <h3>Регистрация</h3>
+                <form id="storeRegisterForm">
+                    <input type="email" id="storeRegisterEmail" placeholder="Email" required>
+                    <input type="password" id="storeRegisterPassword" placeholder="Пароль (мин. 6 симв.)" required minlength="6">
+                    <button type="submit" class="btn-primary">Зарегистрироваться</button>
+                </form>
+                <p class="store-auth-note">На почту придёт ссылка для подтверждения.</p>
+                <p class="store-auth-switch">Есть аккаунт? <a href="#" id="storeAuthShowLogin">Войти</a></p>
+            </div>
+            <div id="storeAuthVerifyWait" class="store-auth-form hidden">
+                <h3>Подтвердите Email</h3>
+                <p>На <strong id="storeVerifyEmailSpan"></strong> отправлено письмо. Перейдите по ссылке и нажмите ниже.</p>
+                <button type="button" class="btn-primary" id="storeAuthVerifyReload">Я подтвердил</button>
+                <button type="button" class="btn-secondary" id="storeAuthVerifyResend">Отправить повторно</button>
+            </div>
+            <p id="storeAuthMessage" class="store-auth-message" style="display:none;"></p>
+        </div>
+    </div>
+
+    <!-- Модалка контактов -->
+    <div id="storeContactsModal" class="store-offer-modal store-contacts-modal hidden">
+        <div class="store-offer-modal-backdrop"></div>
+        <div class="store-offer-modal-content">
+            <button type="button" class="store-offer-modal-close store-contacts-modal-close" aria-label="Закрыть">&times;</button>
+            <h3>Контакты</h3>
+            <div id="storeContactsModalBody" class="store-offer-modal-body"></div>
+        </div>
+    </div>
+    <!-- Модалка оферты (только текст) -->
+    <div id="storeOfferModal" class="store-offer-modal hidden">
+        <div class="store-offer-modal-backdrop"></div>
+        <div class="store-offer-modal-content">
+            <button type="button" class="store-offer-modal-close" aria-label="Закрыть">&times;</button>
+            <h3>Оферта</h3>
+            <div id="storeOfferModalBody" class="store-offer-modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Сообщение после оформления заказа (оформление как у модалки заказа) -->
+    <div id="storeOrderSuccess" class="store-checkout-modal store-order-success-modal hidden" role="dialog" aria-modal="true" aria-labelledby="storeOrderSuccessText">
+        <div class="store-checkout-backdrop"></div>
+        <div class="store-checkout-form-wrap store-order-success-wrap">
+            <p id="storeOrderSuccessText" class="store-order-success-text">Спасибо за ваш заказ! Менеджер свяжется с вами для подтверждения и оплаты заказа.</p>
+            <button type="button" class="btn-primary store-order-success-ok" id="storeOrderSuccessOkBtn">Понятно</button>
+        </div>
+    </div>
+
+    <script src="store.js"></script>
+</body>
+</html>
