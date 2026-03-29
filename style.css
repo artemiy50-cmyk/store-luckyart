@@ -4823,25 +4823,42 @@ body.store-page #storeRoot {
     cursor: pointer;
 }
 
-.store-orders-add-btn {
-    height: 38px;
-    min-width: 140px;
-    border-radius: 8px;
+/* Панель «Мой магазин»: кнопки «Добавить …» и селект — высота как в разделе «Изделия» (.controls + btn-primary) */
+#myStore .controls > .controls-left > .btn-primary {
+    min-height: 42px;
+    height: 42px;
+    box-sizing: border-box;
     padding: 0 16px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    line-height: 1;
     white-space: nowrap;
 }
 
 #storeOrdersStatusFilter {
-    height: 38px;
+    min-height: 42px;
+    height: 42px;
     min-width: 220px;
     padding: 0 12px;
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--radius);
     background: var(--color-surface);
     box-sizing: border-box;
+    font-size: 14px;
+}
+
+/* «Мой магазин» → Категории: кнопка на одной линии с Заказы/Товары, подсказка справа */
+#myStore .store-categories-toolbar {
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    width: 100%;
+}
+#myStore .store-categories-toolbar-hint {
+    margin: 0;
+    flex: 1 1 220px;
+    max-width: min(100%, 640px);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--color-text-light, #64748b);
 }
 
 #storeOrderModal input[readonly],

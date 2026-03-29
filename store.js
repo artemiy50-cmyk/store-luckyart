@@ -24,6 +24,307 @@
     // Поддомены, зарезервированные для приложения (план §5.5)
     const RESERVED_SUBDOMAINS = ['app', 'www', 'api', 'mail', 'admin', 'store'];
 
+    const RU_TO_LAT = {
+        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i',
+        'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't',
+        'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch', 'ъ': '', 'ы': 'y', 'ь': '',
+        'э': 'e', 'ю': 'yu', 'я': 'ya'
+    };
+
+    /** Транслитерация для сегмента URL товара (?tovar=...) */
+    function transliterateRuForSlug(str) {
+        const s = String(str || '').toLowerCase();
+        let out = '';
+        for (let i = 0; i < s.length; i++) {
+            const ch = s[i];
+            if (RU_TO_LAT[ch] !== undefined) {
+                out += RU_TO_LAT[ch];
+                continue;
+            }
+            if (/[a-z0-9]/.test(ch)) {
+                out += ch;
+                continue;
+            }
+            if (/\s/.test(ch) || ch === '-' || ch === '_' || ch === '.') {
+                out += '-';
+            }
+        }
+        return out.replace(/-+/g, '-').replace(/^-|-$/g, '');
+    }
+
+    function slugifyProductName(name) {
+        const t = transliterateRuForSlug(name);
+        return t || '';
+    }
+
+    let _indexToTovarSlug = {};
+    let _tovarSlugToIndex = {};
+
+    function rebuildTovarSlugMaps() {
+        _indexToTovarSlug = {};
+        _tovarSlugToIndex = {};
+        const arr = storeProductsData || [];
+        const usage = {};
+        for (let i = 0; i < arr.length; i++) {
+            let base = slugifyProductName(arr[i] && arr[i].name);
+            if (!base) base = 'tovar';
+            usage[base] = (usage[base] || 0) + 1;
+            const slug = usage[base] === 1 ? base : base + '-' + usage[base];
+            _indexToTovarSlug[i] = slug;
+            _tovarSlugToIndex[slug] = i;
+        }
+    }
+
+    function getStoreQueryParam(name) {
+        return new URLSearchParams(window.location.search).get(name);
+    }
+
+    /** Собрать URL: pathname + ? + params (сохраняет store= на localhost) + hash */
+    function buildStoreUrlWithSearch(updates) {
+        const u = new URL(window.location.href);
+        const params = u.searchParams;
+        if (updates.tovar === null || updates.tovar === '') {
+            params.delete('tovar');
+        } else if (updates.tovar) {
+            params.set('tovar', updates.tovar);
+        }
+        const q = params.toString();
+        return u.pathname + (q ? '?' + q : '') + (u.hash || '');
+    }
+
+    function stripTovarFromUrlReplace() {
+        if (!getStoreQueryParam('tovar')) return;
+        try {
+            history.replaceState(null, '', buildStoreUrlWithSearch({ tovar: null }));
+        } catch (e) { /* IE */ }
+    }
+
+    function setTovarInUrlReplace(slug) {
+        if (!slug) return;
+        try {
+            history.replaceState(null, '', buildStoreUrlWithSearch({ tovar: slug }));
+        } catch (e) { /* IE */ }
+    }
+
+    function ensureHeadMeta(attrName, attrValue, keyTag) {
+        const sel = `meta[${attrName}="${attrValue.replace(/"/g, '\\"')}"]`;
+        let el = document.head.querySelector(sel);
+        if (!el) {
+            el = document.createElement('meta');
+            el.setAttribute(attrName, attrValue);
+            if (keyTag) el.setAttribute('data-store-seo', keyTag);
+            document.head.appendChild(el);
+        } else if (keyTag) el.setAttribute('data-store-seo', keyTag);
+        return el;
+    }
+
+    function removeStoreSeoNodes() {
+        document.querySelectorAll('[data-store-seo]').forEach((n) => n.remove());
+    }
+
+    function truncateSeoText(s, maxLen) {
+        const t = String(s || '').replace(/\s+/g, ' ').trim();
+        if (t.length <= maxLen) return t;
+        return t.slice(0, maxLen - 1).trim() + '…';
+    }
+
+    function absoluteUrlMaybe(url) {
+        const u = String(url || '').trim();
+        if (!u) return '';
+        if (/^https?:\/\//i.test(u)) return u;
+        try {
+            return new URL(u, window.location.origin).href;
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function stripHtmlToText(html) {
+        const d = document.createElement('div');
+        d.innerHTML = String(html || '');
+        return (d.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function removeJsonLdScript() {
+        document.querySelectorAll('script[data-store-seo="jsonld"]').forEach((n) => n.remove());
+    }
+
+    function applyJsonLdWebSite() {
+        const cfg = storeConfig || {};
+        const pageTitle = (cfg.seoTitle || cfg.title || 'Магазин').trim() || 'Магазин';
+        const desc = truncateSeoText(
+            cfg.seoDescription || cfg.description || cfg.aboutDesc || '',
+            300
+        );
+        const siteUrl = hrefWithoutTovarQuery();
+        const ld = {
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: pageTitle,
+            description: desc || undefined,
+            url: siteUrl
+        };
+        const script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.setAttribute('data-store-seo', 'jsonld');
+        script.textContent = JSON.stringify(ld);
+        document.head.appendChild(script);
+    }
+
+    function applyJsonLdProduct(p) {
+        if (!p) return;
+        const name = (p.name || 'Товар').trim();
+        const desc = truncateSeoText(stripHtmlToText(p.description) || name, 300);
+        const imgs = Array.isArray(p.imageUrls) && p.imageUrls.length ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []);
+        const img0 = imgs.length ? absoluteUrlMaybe(imgs[0]) : '';
+        const price = parseFloat(p.priceSale || p.price) || 0;
+        const currency = 'RUB';
+        const ld = {
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name,
+            description: desc || undefined,
+            image: img0 || undefined,
+            offers: {
+                '@type': 'Offer',
+                price: price.toFixed(2),
+                priceCurrency: currency,
+                availability: 'https://schema.org/InStock'
+            }
+        };
+        const script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.setAttribute('data-store-seo', 'jsonld');
+        script.textContent = JSON.stringify(ld);
+        document.head.appendChild(script);
+    }
+
+    /**
+     * SEO для главной витрины (без открытой модалки товара)
+     */
+    function hrefWithoutTovarQuery() {
+        try {
+            const u = new URL(window.location.href);
+            u.searchParams.delete('tovar');
+            u.hash = '';
+            return u.origin + u.pathname + (u.searchParams.toString() ? '?' + u.searchParams.toString() : '');
+        } catch (e) {
+            return window.location.href.split('#')[0];
+        }
+    }
+
+    function hrefCurrentPageNoHash() {
+        try {
+            const u = new URL(window.location.href);
+            u.hash = '';
+            return u.href;
+        } catch (e) {
+            return window.location.href.split('#')[0];
+        }
+    }
+
+    function applySeoForStoreHome() {
+        const cfg = storeConfig || {};
+        const pageTitle = (cfg.seoTitle || cfg.title || 'Магазин').trim() || 'Магазин';
+        document.title = pageTitle;
+
+        removeStoreSeoNodes();
+        removeJsonLdScript();
+
+        const rawDesc = (cfg.seoDescription || cfg.description || cfg.aboutDesc || '').trim();
+        const desc = truncateSeoText(stripHtmlToText(rawDesc) || pageTitle, 160);
+        const dm = ensureHeadMeta('name', 'description', 'desc');
+        dm.setAttribute('content', desc);
+
+        const canonicalHref = hrefWithoutTovarQuery();
+        let link = document.head.querySelector('link[rel="canonical"][data-store-seo="canonical"]');
+        if (!link) {
+            link = document.createElement('link');
+            link.setAttribute('rel', 'canonical');
+            link.setAttribute('data-store-seo', 'canonical');
+            document.head.appendChild(link);
+        }
+        link.setAttribute('href', canonicalHref);
+
+        const ogTitle = ensureHeadMeta('property', 'og:title', 'og-title');
+        ogTitle.setAttribute('content', pageTitle);
+        const ogDesc = ensureHeadMeta('property', 'og:description', 'og-desc');
+        ogDesc.setAttribute('content', desc);
+        const ogUrl = ensureHeadMeta('property', 'og:url', 'og-url');
+        ogUrl.setAttribute('content', canonicalHref);
+        const ogType = ensureHeadMeta('property', 'og:type', 'og-type');
+        ogType.setAttribute('content', 'website');
+        const twCard = ensureHeadMeta('name', 'twitter:card', 'tw-card');
+        twCard.setAttribute('content', 'summary_large_image');
+
+        const ogImgUrl = absoluteUrlMaybe(cfg.seoOgImage || cfg.logo || cfg.banner || '');
+        if (ogImgUrl) {
+            const ogImg = ensureHeadMeta('property', 'og:image', 'og-image');
+            ogImg.setAttribute('content', ogImgUrl);
+        }
+
+        if (cfg.seoNoindex) {
+            const robots = ensureHeadMeta('name', 'robots', 'robots');
+            robots.setAttribute('content', 'noindex, nofollow');
+        }
+
+        applyJsonLdWebSite();
+    }
+
+    /**
+     * SEO при открытой карточке товара
+     */
+    function applySeoForProductModal(p) {
+        if (!p) return;
+        const cfg = storeConfig || {};
+        const shopName = (cfg.seoTitle || cfg.title || 'Магазин').trim() || 'Магазин';
+        const name = (p.name || 'Товар').trim();
+        document.title = truncateSeoText(name + ' — ' + shopName, 70);
+
+        removeStoreSeoNodes();
+        removeJsonLdScript();
+
+        const rawPd = stripHtmlToText(p.description);
+        const desc = truncateSeoText(rawPd || name, 160);
+        const dm = ensureHeadMeta('name', 'description', 'desc');
+        dm.setAttribute('content', desc);
+
+        const pageUrl = hrefCurrentPageNoHash();
+        let link = document.head.querySelector('link[rel="canonical"][data-store-seo="canonical"]');
+        if (!link) {
+            link = document.createElement('link');
+            link.setAttribute('rel', 'canonical');
+            link.setAttribute('data-store-seo', 'canonical');
+            document.head.appendChild(link);
+        }
+        link.setAttribute('href', pageUrl);
+
+        const ogTitle = ensureHeadMeta('property', 'og:title', 'og-title');
+        ogTitle.setAttribute('content', name);
+        const ogDesc = ensureHeadMeta('property', 'og:description', 'og-desc');
+        ogDesc.setAttribute('content', desc);
+        const ogUrl = ensureHeadMeta('property', 'og:url', 'og-url');
+        ogUrl.setAttribute('content', pageUrl);
+        const ogType = ensureHeadMeta('property', 'og:type', 'og-type');
+        ogType.setAttribute('content', 'product');
+
+        const imgs = Array.isArray(p.imageUrls) && p.imageUrls.length ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []);
+        const img0 = imgs.length ? absoluteUrlMaybe(imgs[0]) : '';
+        const ogImgFallback = absoluteUrlMaybe(cfg.seoOgImage || cfg.logo || cfg.banner || '');
+        const ogImgFinal = img0 || ogImgFallback;
+        if (ogImgFinal) {
+            const ogImg = ensureHeadMeta('property', 'og:image', 'og-image');
+            ogImg.setAttribute('content', ogImgFinal);
+        }
+
+        if (cfg.seoNoindex) {
+            const robots = ensureHeadMeta('name', 'robots', 'robots');
+            robots.setAttribute('content', 'noindex, nofollow');
+        }
+
+        applyJsonLdProduct(p);
+    }
+
     /**
      * Определяет поддомен по hostname.
      * app.my-3d-print.ru → Manager (не Store)
@@ -145,6 +446,17 @@
     function applyRoute() {
         closeCartDrawer();
         const route = getRoute();
+        const routesThatClearTovar = ['cart', 'favorites', 'account', 'category'];
+        if (routesThatClearTovar.includes(route.type)) {
+            const modal = document.getElementById('storeProductModal');
+            if (modal && !modal.classList.contains('hidden')) {
+                closeProductImageFullscreen();
+                modal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+            stripTovarFromUrlReplace();
+            if (storeConfig) applySeoForStoreHome();
+        }
         if (route.type === 'cart' && storeOwnerUid) {
             showState('cart');
             renderCartPage();
@@ -1188,7 +1500,7 @@
     let _productModalCurrentImgIdx = 0;
     let _productModalUrls = [];
 
-    function openProductModal(productIndex) {
+    function openProductModal(productIndex, opts) {
         const p = storeProductsData && storeProductsData[productIndex];
         if (!p || !isStoreProductVisibleOnStorefront(p)) return;
         _productModalCurrentIdx = productIndex;
@@ -1259,6 +1571,11 @@
         prevBtn.style.display = _productModalUrls.length > 1 ? '' : 'none';
         nextBtn.style.display = _productModalUrls.length > 1 ? '' : 'none';
 
+        const skipUrl = opts && opts.skipUrl;
+        const slug = _indexToTovarSlug[productIndex];
+        if (slug && !skipUrl) setTovarInUrlReplace(slug);
+        applySeoForProductModal(p);
+
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
         refreshStoreProductModalCartHint(productIndex);
@@ -1277,6 +1594,8 @@
         closeProductImageFullscreen();
         document.getElementById('storeProductModal').classList.add('hidden');
         document.body.style.overflow = '';
+        stripTovarFromUrlReplace();
+        if (storeConfig) applySeoForStoreHome();
     }
 
     function openProductImageFullscreen() {
@@ -2291,6 +2610,18 @@
     }
     window.STORE_DEBUG = debugLog;
 
+    function tryOpenTovarFromQuery() {
+        if (!storeOwnerUid || !storeProductsData) return;
+        const slug = getStoreQueryParam('tovar');
+        if (!slug) return;
+        const idx = _tovarSlugToIndex[slug];
+        if (idx === undefined) {
+            stripTovarFromUrlReplace();
+            return;
+        }
+        openProductModal(idx, { skipUrl: true });
+    }
+
     /**
      * Инициализация Store SPA.
      * Резолв поддомена: storesBySubdomain/{subdomain} → ownerUid → store, storeProducts.
@@ -2345,6 +2676,7 @@
             const storeProductsSnap = await db.ref('users/' + uid + '/storeProducts').once('value');
             const raw = storeProductsSnap.val();
             storeProductsData = raw && typeof raw === 'object' ? (Array.isArray(raw) ? raw : Object.values(raw)) : [];
+            rebuildTovarSlugMaps();
 
             storeCategoriesData = await getStoreCategoriesTree(uid);
             storeCategoriesMap = buildCategoriesMap(storeCategoriesData);
@@ -2360,6 +2692,11 @@
             renderCategoriesDrawer();
             window.addEventListener('hashchange', applyRoute);
             applyRoute();
+            tryOpenTovarFromQuery();
+            const modalAfterDeep = document.getElementById('storeProductModal');
+            if (!modalAfterDeep || modalAfterDeep.classList.contains('hidden')) {
+                if (storeConfig) applySeoForStoreHome();
+            }
             updateCartUI();
             updateFavoritesUI();
         } catch (e) {
