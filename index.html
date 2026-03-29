@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="yandex-verification" content="d92bf21701955a45" />
-<title>Магазин 3D-печати</title>
+        <meta name="yandex-verification" content="d92bf21701955a45" />
+
+    <title>Магазин 3D-печати</title>
 
     <!-- Firebase (тот же проект, что и Manager) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -18,7 +19,9 @@
     <!-- Шапка магазина -->
     <header id="storeHeader" class="store-header">
         <div class="store-header-inner">
+            <div class="store-header-left">
             <button type="button" id="storeHamburgerBtn" class="store-hamburger-btn hidden" aria-label="Категории"><span class="store-hamburger-icon"><svg class="store-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></span><span class="store-hamburger-label">Меню</span></button>
+            </div>
             <div class="store-header-center">
                 <a href="#" id="storeLogoLink" class="store-logo-link">
                     <img id="storeLogoImg" src="" alt="" class="store-header-logo-img hidden">
@@ -35,6 +38,7 @@
                     </div>
                     <div id="storeSearchDropdown" class="store-search-dropdown hidden"></div>
                 </div>
+                <div class="store-header-icon-actions">
                 <button type="button" id="storeFavoritesBtn" class="store-favorites-btn hidden" title="Избранное" aria-label="Избранное">
                     <span class="store-favorites-icon"><svg class="store-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
                     <span id="storeFavoritesCount" class="store-favorites-count">0</span>
@@ -51,6 +55,7 @@
                     <span class="store-cart-icon"><svg class="store-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span>
                     <span id="storeCartCount" class="store-cart-count">0</span>
                 </button>
+                </div>
             </div>
         </div>
     </header>
@@ -121,11 +126,11 @@
             <div id="storeCartList" class="store-cart-list"></div>
             <div id="storeCartEmpty" class="store-cart-empty hidden">Корзина пуста</div>
             <div id="storeCartFooter" class="store-cart-footer hidden">
+                <div class="store-cart-total">Итого: <span id="storeCartTotalVal">0</span> ₽</div>
                 <div class="store-cart-comment-row">
                     <label for="storeCartComment">Комментарий к заказу</label>
-                    <textarea id="storeCartComment" rows="2" placeholder="Пожелания по доставке"></textarea>
+                    <textarea id="storeCartComment" rows="2" placeholder="Оставьте комментарий для менеджера магазина"></textarea>
                 </div>
-                <div class="store-cart-total">Итого: <span id="storeCartTotalVal">0</span> ₽</div>
                 <button type="button" class="btn-primary store-checkout-btn" id="storeCheckoutBtn">Оформить заказ</button>
                 <p class="store-cart-footer-note">Менеджер свяжется с вами по вашему email. Для коммуникации в мессенджере укажите удобный для связи мессенджер и ваш никнейм в поле комментария или напишите нам в телеграм с номером вашего заказа.</p>
             </div>
@@ -181,6 +186,7 @@
         <div class="store-product-modal-backdrop"></div>
         <div class="store-product-modal-content">
             <div class="store-product-modal-nav">
+                <p id="storeProductModalNavTitle" class="store-product-modal-nav-title" aria-hidden="true"></p>
                 <button type="button" class="store-product-modal-close" aria-label="Закрыть">&times;</button>
             </div>
             <div class="store-product-modal-body">
@@ -306,6 +312,7 @@
         </div>
     </div>
 
+    <script src="app-version.js"></script>
     <script src="store.js"></script>
 </body>
 </html>

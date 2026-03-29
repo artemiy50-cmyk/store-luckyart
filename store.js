@@ -21,6 +21,12 @@
         databaseURL: "https://d-print-app-3655b-default-rtdb.europe-west1.firebasedatabase.app"
     };
 
+    function getAppReleaseVersion() {
+        return typeof window !== 'undefined' && window.APP_VERSION != null
+            ? String(window.APP_VERSION)
+            : '?';
+    }
+
     // Поддомены, зарезервированные для приложения (план §5.5)
     const RESERVED_SUBDOMAINS = ['app', 'www', 'api', 'mail', 'admin', 'store'];
 
@@ -924,17 +930,35 @@
             const imgUrl = x.imageUrl || (storeProductsData && storeProductsData[x.productIndex] && (storeProductsData[x.productIndex].imageUrls?.[0] || storeProductsData[x.productIndex].imageUrl)) || '';
             const imgAttr = imgUrl ? ` data-image-url="${escapeStoreHtml(imgUrl)}"` : '';
             const previewHtml = imgUrl ? `<span class="store-cart-item-preview"><img src="${escapeStoreHtml(imgUrl)}" alt=""></span>` : '';
-            return `
-                <div class="store-cart-item" data-product-index="${x.productIndex}">
-                    <div class="store-cart-item-name store-cart-item-name-clickable"${imgAttr} data-product-index="${x.productIndex}">${escapeStoreHtml(x.name)}${previewHtml}</div>
-                    <div class="store-cart-item-qty">
+            const unitStr = `${(x.price).toFixed(0)} ₽`;
+            const sumStr = `${(x.price * x.qty).toFixed(0)} ₽`;
+            const nameBlock = `<div class="store-cart-item-name store-cart-item-name-clickable"${imgAttr} data-product-index="${x.productIndex}">${escapeStoreHtml(x.name)}${previewHtml}</div>`;
+            const qtyBlock = `<div class="store-cart-item-qty">
                         <button type="button" class="store-cart-qty-btn" data-action="minus" data-index="${x.productIndex}" aria-label="Уменьшить">−</button>
                         <span class="store-cart-qty-val">${x.qty}</span>
                         <button type="button" class="store-cart-qty-btn" data-action="plus" data-index="${x.productIndex}" aria-label="Увеличить">+</button>
+                    </div>`;
+            const stackedRows = `
+                    <div class="store-cart-item-drawer-top">
+                        ${nameBlock}
+                        ${qtyBlock}
                     </div>
-                    <div class="store-cart-item-price">${(x.price).toFixed(0)} ₽</div>
-                    <div class="store-cart-item-sum">${(x.price * x.qty).toFixed(0)} ₽</div>
-                    <button type="button" class="store-cart-item-remove" data-index="${x.productIndex}" aria-label="Удалить">&times;</button>
+                    <div class="store-cart-item-drawer-bottom">
+                        <span class="store-cart-item-drawer-unit"><span class="store-cart-item-unit-label">Цена</span> ${unitStr}</span>
+                        <div class="store-cart-item-drawer-actions">
+                            <span class="store-cart-item-line-total"><span class="store-cart-item-line-total-label">Стоимость позиции</span> <span class="store-cart-item-sum">${sumStr}</span></span>
+                            <button type="button" class="store-cart-item-remove" data-index="${x.productIndex}" aria-label="Удалить">&times;</button>
+                        </div>
+                    </div>`;
+            if (isDrawer) {
+                return `
+                <div class="store-cart-item store-cart-item--drawer" data-product-index="${x.productIndex}">
+                    ${stackedRows}
+                </div>`;
+            }
+            return `
+                <div class="store-cart-item store-cart-item--cart-page" data-product-index="${x.productIndex}">
+                    ${stackedRows}
                 </div>`;
         }).join('');
     }
@@ -1598,7 +1622,10 @@
         if (p.imageUrl && _productModalUrls.length === 0) _productModalUrls = [p.imageUrl];
 
         const modal = document.getElementById('storeProductModal');
-        document.getElementById('storeProductModalTitle').textContent = p.name || 'Товар';
+        const modalTitleText = p.name || 'Товар';
+        document.getElementById('storeProductModalTitle').textContent = modalTitleText;
+        const navTitleEl = document.getElementById('storeProductModalNavTitle');
+        if (navTitleEl) navTitleEl.textContent = modalTitleText;
         document.getElementById('storeProductModalArticle').textContent = p.systemId ? 'Артикул: ' + p.systemId : '';
         const priceVal = parseFloat(p.price) || 0;
         const priceSaleVal = (p.priceSale != null && p.priceSale !== '') ? parseFloat(p.priceSale) : null;
@@ -1904,7 +1931,7 @@
     }
 
     /**
-     * Подвал: соцсети + ссылка на оферту
+     * Подвал: только из админки — иконки соцсетей, «Оферта» (если есть текст), «Контакты» (если есть блок контактов)
      */
     function renderStoreFooter() {
         const footer = document.getElementById('storeFooter');
@@ -1931,6 +1958,13 @@
             { label: 'WhatsApp', url: s.socialWhatsapp, icon: 'whatsapp' }
         ].filter(x => x.url).map(l => ({ ...l, href: toHref(l.label, l.url) }));
 
+        const iconOrder = ['Telegram', 'Instagram', 'VK', 'TikTok', 'Email', 'Телефон', 'WhatsApp'];
+        const sortedItems = items.slice().sort((a, b) => {
+            const ia = iconOrder.indexOf(a.label);
+            const ib = iconOrder.indexOf(b.label);
+            return (ia === -1 ? 100 : ia) - (ib === -1 ? 100 : ib);
+        });
+
         const iconSvg = (key) => {
             const w = 24; const h = 24;
             const icons = {
@@ -1945,19 +1979,27 @@
             return icons[key] || '';
         };
 
-        let html = '';
-        items.forEach(l => {
-            html += `<a href="${escapeStoreHtml(l.href)}" target="_blank" rel="noopener" class="store-footer-link" title="${escapeStoreHtml(l.label)}">${iconSvg(l.icon)}</a>`;
+        const hasContactsBlock = !!(s.aboutContacts || items.length > 0 || s.sellerDetails);
+        const showOffer = !!s.offer;
+        let iconsHtml = '';
+        sortedItems.forEach((l) => {
+            iconsHtml += `<a href="${escapeStoreHtml(l.href)}" target="_blank" rel="noopener" class="store-footer-link" title="${escapeStoreHtml(l.label)}">${iconSvg(l.icon)}</a>`;
         });
-        if (s.offer) {
-            html += `<a href="#" class="store-footer-link store-footer-offer store-footer-offer-text" id="storeFooterOfferLink">Оферта</a>`;
+        let textHtml = '';
+        if (showOffer) {
+            textHtml += '<a href="#" class="store-footer-link store-footer-offer-text store-footer-offer" id="storeFooterOfferLink">Оферта</a>';
         }
-        const hasContacts = s.aboutContacts || items.length > 0 || s.sellerDetails;
-        if (hasContacts) {
-            html += `<a href="#" class="store-footer-link store-footer-contacts store-footer-offer-text" id="storeFooterContactsLink">Контакты</a>`;
+        if (hasContactsBlock) {
+            textHtml += '<a href="#" class="store-footer-link store-footer-offer-text store-footer-contacts" id="storeFooterContactsLink">Контакты</a>';
         }
-        linksEl.innerHTML = html || '';
-        footer.classList.toggle('hidden', !html);
+
+        const partIcons = iconsHtml ? `<div class="store-footer-part store-footer-part-icons">${iconsHtml}</div>` : '';
+        const partText = textHtml ? `<div class="store-footer-part store-footer-part-text">${textHtml}</div>` : '';
+        const fullHtml = partIcons + partText;
+        const hasAny = iconsHtml || textHtml;
+        linksEl.innerHTML = hasAny ? fullHtml : '';
+        footer.classList.toggle('hidden', !hasAny);
+
         document.getElementById('storeFooterOfferLink')?.addEventListener('click', (e) => {
             e.preventDefault();
             openOfferModal();
@@ -2220,6 +2262,10 @@
                         </div>`;
                     }).join('');
                     const total = (o.total != null) ? parseFloat(o.total).toFixed(0) : '—';
+                    const commentRaw = o.comment != null ? String(o.comment).trim() : '';
+                    const commentBlock = commentRaw
+                        ? `<div class="store-account-order-buyer-comment">Комментарий покупателя: ${escapeStoreHtml(commentRaw)}</div>`
+                        : '';
                     const headRow = lines.length
                         ? `<div class="store-account-order-lines-head" aria-hidden="true">
                             <span class="store-account-order-lines-head-num"></span>
@@ -2237,6 +2283,7 @@
                         ${headRow}
                         <div class="store-account-order-lines">${linesHtml}</div>
                         <div class="store-account-order-total">Итого: ${total} ₽</div>
+                        ${commentBlock}
                     </div>`;
                 }).join('');
                 if (emptyEl) emptyEl.classList.add('hidden');
@@ -2684,10 +2731,11 @@
     }
 
     /**
-     * Детальный лог для диагностики (откройте консоль браузера: F12 → Console).
+     * Служебный лог при загрузке витрины (F12 → Консоль): адрес, поддомен, версия как в админке.
      */
     function debugLog() {
         const info = {
+            version: getAppReleaseVersion(),
             href: location.href,
             hostname: location.hostname,
             pathname: location.pathname,
