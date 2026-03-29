@@ -1,6 +1,6 @@
 /**
  * Store SPA — публичный лайт-магазин на поддомене.
- * См. STORE_GITHUB_PAGES_PLAN.md, STORE_MIGRATE_GITHUB_STEPS.md
+ * См. STORE_GITHUB_PAGES_PLAN.md
  *
  * Резолв поддомена:
  * location.hostname.split('.')[0] → storesBySubdomain/{subdomain} → ownerUid → store, storeProducts
@@ -143,6 +143,93 @@
         const d = document.createElement('div');
         d.innerHTML = String(html || '');
         return (d.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
+    /**
+     * Метатег подтверждения домена для Яндекс Метрики (users/…/store.yandexVerificationMeta).
+     * Принимает полный &lt;meta name="yandex-verification" …&gt; или только значение content.
+     */
+    function injectStoreYandexVerificationMeta(snippet) {
+        document.querySelectorAll('meta[data-store-yandex-verification="1"]').forEach(function(el) {
+            el.remove();
+        });
+        const raw = String(snippet || '').trim();
+        if (!raw) return;
+
+        let sourceMeta = null;
+        if (raw.indexOf('<') !== -1) {
+            try {
+                const doc = new DOMParser().parseFromString(raw, 'text/html');
+                const metas = doc.querySelectorAll('meta');
+                for (let i = 0; i < metas.length; i++) {
+                    const n = (metas[i].getAttribute('name') || '').toLowerCase();
+                    if (n === 'yandex-verification') {
+                        sourceMeta = metas[i];
+                        break;
+                    }
+                }
+            } catch (e) { /* ignore */ }
+            if (!sourceMeta) return;
+            const meta = document.createElement('meta');
+            for (let j = 0; j < sourceMeta.attributes.length; j++) {
+                const a = sourceMeta.attributes[j];
+                meta.setAttribute(a.name, a.value);
+            }
+            meta.setAttribute('data-store-yandex-verification', '1');
+            document.head.appendChild(meta);
+            return;
+        }
+
+        const content = raw.replace(/^["']|["']$/g, '').trim();
+        if (!content) return;
+        const meta = document.createElement('meta');
+        meta.setAttribute('data-store-yandex-verification', '1');
+        meta.setAttribute('name', 'yandex-verification');
+        meta.setAttribute('content', content);
+        document.head.appendChild(meta);
+    }
+
+    /**
+     * Вставка кода Яндекс Метрики из настроек магазина (users/…/store.yandexMetricaSnippet).
+     * Удаляет предыдущие вставки по маркеру data-store-yandex-metrica.
+     */
+    function injectStoreYandexMetrica(snippet) {
+        document.querySelectorAll('[data-store-yandex-metrica="1"]').forEach(function(el) {
+            el.remove();
+        });
+        const raw = String(snippet || '').trim();
+        if (!raw) return;
+
+        let doc;
+        try {
+            doc = new DOMParser().parseFromString(raw, 'text/html');
+        } catch (e) {
+            return;
+        }
+        const scripts = doc.querySelectorAll('script');
+        const noscripts = doc.querySelectorAll('noscript');
+
+        scripts.forEach(function(old) {
+            const scr = document.createElement('script');
+            scr.setAttribute('data-store-yandex-metrica', '1');
+            for (let i = 0; i < old.attributes.length; i++) {
+                const a = old.attributes[i];
+                scr.setAttribute(a.name, a.value);
+            }
+            if (old.src) {
+                scr.src = old.src;
+            } else {
+                scr.textContent = old.textContent || '';
+            }
+            document.head.appendChild(scr);
+        });
+
+        noscripts.forEach(function(ns) {
+            const clone = document.createElement('noscript');
+            clone.setAttribute('data-store-yandex-metrica', '1');
+            clone.innerHTML = ns.innerHTML;
+            document.body.appendChild(clone);
+        });
     }
 
     function removeJsonLdScript() {
@@ -2672,6 +2759,8 @@
             storeOwnerUid = uid;
             storeConfig = store;
             storeSubdomain = subdomainKey;
+            injectStoreYandexVerificationMeta(store.yandexVerificationMeta);
+            injectStoreYandexMetrica(store.yandexMetricaSnippet);
 
             const storeProductsSnap = await db.ref('users/' + uid + '/storeProducts').once('value');
             const raw = storeProductsSnap.val();

@@ -3551,6 +3551,27 @@ body.store-page #storeRoot {
     padding: var(--spacing);
 }
 .store-settings-card { width: 100%; }
+.store-yandex-verification-input {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.35;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color, #cbd5e1);
+    border-radius: 6px;
+    background: var(--bg-secondary, #fff);
+}
+.store-metrica-snippet-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    resize: vertical;
+    min-height: 140px;
+}
 .store-settings-columns {
     display: grid;
     grid-template-columns: 1fr 1fr;
