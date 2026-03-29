@@ -153,6 +153,9 @@
         document.querySelectorAll('meta[data-store-yandex-verification="1"]').forEach(function(el) {
             el.remove();
         });
+        if (document.querySelector('meta[name="yandex-verification"]')) {
+            return;
+        }
         const raw = String(snippet || '').trim();
         if (!raw) return;
 
