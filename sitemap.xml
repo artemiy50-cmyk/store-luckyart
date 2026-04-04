@@ -20,4 +20,19 @@
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=yaytso-podves-10-raznotsvetnyh-shtuk</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=krolik-podves-3-shtuki-raznogo-tsveta</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=yaytso-s-ushkami-podves-3-shtuki-raznogo-tsveta</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
 </urlset>

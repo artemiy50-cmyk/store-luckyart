@@ -2744,27 +2744,67 @@ body.store-page #storeRoot {
 }
 .store-banner {
     width: 100%;
-    height: 450px;
-    min-height: 450px;
+    height: 410px;
+    min-height: 410px;
     overflow: hidden;
     background: var(--color-bg);
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .store-banner:not(.hidden) { margin-top: -1px; }
 .store-banner.hidden { display: none; }
-.store-banner img {
-    width: 100%;
-    height: 450px;
-    min-height: 450px;
+/* Размытый фон на всю ширину — та же картинка, cover + blur */
+.store-banner-blur-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+.store-banner-bg-img {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 115%;
+    height: 115%;
+    transform: translate(-50%, -50%);
     object-fit: cover;
     object-position: center;
+    filter: blur(36px);
+    opacity: 0.92;
+}
+/* Центральное изображение — высота всегда равна высоте блока баннера, ширина по пропорциям */
+.store-banner-fg-wrap {
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    pointer-events: none;
+}
+.store-banner-fg-img {
+    height: 100%;
+    width: auto;
+    max-height: 100%;
+    max-width: none;
+    object-fit: contain;
+    object-position: center;
     display: block;
+    flex-shrink: 0;
+    pointer-events: auto;
 }
 .store-banner-desc {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
+    z-index: 2;
     padding: 24px;
     text-align: center;
     color: var(--store-banner-desc-text-color, var(--store-heading-color, white));
@@ -2773,6 +2813,7 @@ body.store-page #storeRoot {
     line-height: 1.5;
     text-shadow: 0 1px 3px rgba(0,0,0,0.5);
     background: linear-gradient(transparent, rgba(0,0,0,0.4));
+    pointer-events: none;
 }
 .store-banner-desc.hidden { display: none; }
 
@@ -3300,10 +3341,9 @@ body.store-page #storeRoot {
         flex-shrink: 0;
         white-space: nowrap;
     }
-    body.store-page .store-banner,
-    body.store-page .store-banner img {
-        height: min(52vw, 280px);
-        min-height: min(52vw, 280px);
+    body.store-page .store-banner {
+        height: min(52vw, 240px);
+        min-height: min(52vw, 240px);
     }
     body.store-page .store-banner-desc {
         font-size: 14px;
@@ -4082,6 +4122,12 @@ body.store-page #storeRoot {
     border-radius: var(--radius);
 }
 .store-cart-drawer-to-page:hover { opacity: 0.9; }
+/* Позиции без выбранных обязательных характеристик (оформление заказа) */
+.store-cart-item--needs-attrs {
+    outline: 2px solid #dc2626;
+    outline-offset: 2px;
+    border-radius: 10px;
+}
 /* Позиции в выдвижной корзине: две строки, итог и удаление справа */
 .store-cart-item--drawer {
     flex-direction: column;
@@ -4537,7 +4583,37 @@ body.store-page #storeRoot {
 .store-product-modal-article {
     font-size: 13px;
     color: var(--color-text-light);
+    margin: 0 0 12px 0;
+}
+.store-product-modal-attrs {
     margin: 0 0 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.store-product-modal-attrs.hidden {
+    display: none !important;
+}
+.store-product-modal-attr-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.store-product-modal-attr-row label {
+    font-size: 13px;
+    color: var(--color-text-light);
+}
+.store-product-modal-attr-row select {
+    width: 100%;
+    max-width: 280px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+.store-product-modal-attr-row select.error {
+    border-color: #dc2626;
 }
 .store-product-modal-price-row {
     display: flex;
@@ -5288,11 +5364,40 @@ body.store-page #storeRoot {
 #storeOrderModal .store-order-modal-header {
     padding-bottom: 36px; /* место для validation-message, как у филамента/изделия */
 }
+.store-order-item-edit-block {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border, #e2e8f0);
+}
+.store-order-item-edit-block:last-child {
+    border-bottom: none;
+}
+.store-order-item-attrs-editor {
+    margin: 8px 0 0 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.store-order-attr-line {
+    display: grid;
+    grid-template-columns: minmax(100px, 0.35fr) 1fr;
+    gap: 10px;
+    align-items: center;
+}
+.store-order-attr-label {
+    font-size: 13px;
+    color: var(--color-text-muted, #64748b);
+}
+.store-order-attr-select {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 36px;
+}
 .store-order-item-edit-row {
     display: grid;
     grid-template-columns: minmax(28px, auto) 1.6fr 0.6fr 0.6fr 0.7fr 36px;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 0;
     align-items: center;
 }
 .store-order-item-edit-row .btn-remove-enrichment.store-order-item-remove {
@@ -5380,6 +5485,117 @@ body.store-page #storeRoot {
     font-size: 13px;
     line-height: 1.45;
     color: var(--color-text-light, #64748b);
+}
+
+#myStore .store-categories-attrs-two-col {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: flex-start;
+}
+#myStore .store-categories-catalog-card {
+    flex: 1 1 calc(50% - 12px);
+    min-width: 280px;
+    max-width: calc(50% - 12px);
+    box-sizing: border-box;
+}
+#myStore .store-attributes-catalog-card {
+    flex: 1 1 calc(50% - 12px);
+    min-width: 280px;
+    max-width: calc(50% - 12px);
+    box-sizing: border-box;
+    margin-top: 0;
+}
+@media (max-width: 960px) {
+    #myStore .store-categories-catalog-card,
+    #myStore .store-attributes-catalog-card {
+        flex: 1 1 100%;
+        max-width: 100%;
+    }
+}
+#myStore .store-attr-catalog-add-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+#myStore .store-attr-catalog-inputs-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 10px;
+    align-items: stretch;
+    width: 100%;
+    box-sizing: border-box;
+}
+#myStore .store-attr-catalog-inputs-row .store-attr-catalog-input {
+    flex: 1 1 0;
+    min-width: 0;
+    width: 0; /* вместе с flex: 1 — две равные колонки, перебивает width:100% у .store-attr-catalog-input */
+    max-width: none;
+}
+#myStore .store-attr-catalog-input {
+    width: 100%;
+    max-width: none;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 14px;
+    box-sizing: border-box;
+}
+#myStore .store-attributes-catalog-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+}
+#myStore .store-attributes-catalog-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+#myStore .store-attributes-catalog-table th,
+#myStore .store-attributes-catalog-table td {
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--color-border);
+}
+#myStore .store-attributes-catalog-table .store-attr-cat-td-name,
+#myStore .store-attributes-catalog-table .store-attr-cat-td-value,
+#myStore .store-attributes-catalog-table th:nth-child(2) {
+    text-align: left !important;
+}
+/* Колонка «Значение» — сдвиг содержимого влево на 50px */
+#myStore .store-attributes-catalog-table th:nth-child(2),
+#myStore .store-attributes-catalog-table td.store-attr-cat-td-value {
+    transform: translateX(-50px);
+}
+#myStore .store-attributes-catalog-th-actions,
+#myStore .store-attr-cat-td-actions {
+    width: 52px;
+    text-align: center;
+    white-space: nowrap;
+}
+#myStore .store-attributes-catalog-table th {
+    background: var(--color-bg, #f8fafc);
+    font-weight: 600;
+}
+
+.store-product-attributes-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.store-product-attr-row {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr auto;
+    gap: 8px;
+    align-items: center;
+}
+.store-product-attr-row input {
+    width: 100%;
+    box-sizing: border-box;
 }
 
 #storeOrderModal input[readonly],

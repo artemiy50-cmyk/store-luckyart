@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="yandex-verification" content="d92bf21701955a45" />
-<title>Магазин 3D-печати</title>
+        <meta name="yandex-verification" content="d92bf21701955a45" />
+
+    <title>Магазин 3D-печати</title>
 
     <!-- Firebase (тот же проект, что и Manager) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -74,7 +75,12 @@
 
     <!-- Баннер (между шапкой и контентом) -->
     <div id="storeBanner" class="store-banner hidden">
-        <img id="storeBannerImg" src="" alt="">
+        <div class="store-banner-blur-layer" aria-hidden="true">
+            <img id="storeBannerBgImg" class="store-banner-bg-img" src="" alt="">
+        </div>
+        <div class="store-banner-fg-wrap">
+            <img id="storeBannerImg" class="store-banner-fg-img" src="" alt="">
+        </div>
         <div id="storeBannerDesc" class="store-banner-desc"></div>
     </div>
 
@@ -207,6 +213,7 @@
                         </button>
                     </div>
                     <p id="storeProductModalArticle" class="store-product-modal-article"></p>
+                    <div id="storeProductModalAttrs" class="store-product-modal-attrs hidden" aria-live="polite"></div>
                     <div class="store-product-modal-price-row">
                         <div id="storeProductModalPrice" class="store-product-modal-price"></div>
                         <div class="store-product-modal-qty-wrap">

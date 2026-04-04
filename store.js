@@ -604,11 +604,14 @@
     function updateStoreBanner() {
         const bannerEl = document.getElementById('storeBanner');
         const bannerImg = document.getElementById('storeBannerImg');
+        const bannerBgImg = document.getElementById('storeBannerBgImg');
         const bannerDesc = document.getElementById('storeBannerDesc');
         if (!bannerEl || !bannerImg) return;
         const showBanner = storeConfig && storeConfig.banner && getRoute().type === 'main';
         if (showBanner) {
-            bannerImg.src = storeConfig.banner;
+            const url = storeConfig.banner;
+            bannerImg.src = url;
+            if (bannerBgImg) bannerBgImg.src = url;
             bannerEl.classList.remove('hidden');
             if (bannerDesc) {
                 const desc = storeConfig.aboutDesc || '';
@@ -618,6 +621,7 @@
         } else {
             bannerEl.classList.add('hidden');
             bannerImg.src = '';
+            if (bannerBgImg) bannerBgImg.src = '';
             if (bannerDesc) bannerDesc.textContent = '';
         }
     }
@@ -724,6 +728,8 @@
     let storeSubdomain = null;
     let _selectedCategoryId = null;
     let _storeSearchTerm = '';
+    /** После попытки оформить заказ без выбранных характеристик — подсветка строк в корзине. */
+    let _cartAttrHighlightActive = false;
 
     /** Витрина и корзина: скрыты выключенные из каталога и неактивные товары */
     function isStoreProductVisibleOnStorefront(p) {
@@ -812,25 +818,42 @@
             const raw = localStorage.getItem(getCartStorageKey());
             if (!raw) return [];
             const arr = JSON.parse(raw);
-            return Array.isArray(arr) ? arr : [];
+            if (!Array.isArray(arr)) return [];
+            return arr.map((x) => {
+                if (!x || typeof x !== 'object') return x;
+                const y = { ...x };
+                if (!y.selectedAttributes || typeof y.selectedAttributes !== 'object') y.selectedAttributes = {};
+                return y;
+            });
         } catch (e) {
             return [];
         }
     }
 
     function setCart(items) {
+        _cartAttrHighlightActive = false;
         const key = getCartStorageKey();
         localStorage.setItem(key, JSON.stringify(items));
         updateCartUI();
     }
 
-    function addToCart(productIndex, qty) {
+    function cartLineMissingRequiredAttrs(x) {
+        if (!x || typeof x !== 'object') return false;
+        const pr = storeProductsData && storeProductsData[x.productIndex];
+        const req = normalizeStoreProductAttributes(pr && pr.attributes);
+        if (!req.length) return false;
+        const sa = x.selectedAttributes && typeof x.selectedAttributes === 'object' ? x.selectedAttributes : {};
+        return req.some((a) => !String(sa[a.name] || '').trim());
+    }
+
+    function addToCart(productIndex, qty, selectedAttributes) {
         const p = storeProductsData[productIndex];
         if (!p || !isStoreProductVisibleOnStorefront(p)) return;
         const priceSaleVal = (p.priceSale != null && p.priceSale !== '') ? parseFloat(p.priceSale) : null;
         const effectivePrice = (priceSaleVal != null && priceSaleVal > 0) ? priceSaleVal : (parseFloat(p.price) || 0);
+        const attrs = selectedAttributes && typeof selectedAttributes === 'object' ? { ...selectedAttributes } : {};
         const items = getCart();
-        const idx = items.findIndex(x => x.productIndex === productIndex);
+        const idx = items.findIndex((x) => x.productIndex === productIndex && sameCartSelectedAttrs(x.selectedAttributes, attrs));
         const addQty = qty || 1;
         if (idx >= 0) {
             items[idx].qty += addQty;
@@ -843,23 +866,25 @@
                 price: effectivePrice,
                 productId: p.productId || null,
                 qty: addQty,
-                imageUrl: imgUrl
+                imageUrl: imgUrl,
+                selectedAttributes: attrs
             });
         }
         setCart(items);
     }
 
-    function updateCartQty(productIndex, delta) {
+    function updateCartQty(cartIndex, delta) {
         const items = getCart();
-        const idx = items.findIndex(x => x.productIndex === productIndex);
-        if (idx < 0) return;
-        items[idx].qty += delta;
-        if (items[idx].qty <= 0) items.splice(idx, 1);
+        if (cartIndex < 0 || cartIndex >= items.length) return;
+        items[cartIndex].qty += delta;
+        if (items[cartIndex].qty <= 0) items.splice(cartIndex, 1);
         setCart(items);
     }
 
-    function removeFromCart(productIndex) {
-        const items = getCart().filter(x => x.productIndex !== productIndex);
+    function removeFromCart(cartIndex) {
+        const items = getCart();
+        if (cartIndex < 0 || cartIndex >= items.length) return;
+        items.splice(cartIndex, 1);
         setCart(items);
     }
 
@@ -875,8 +900,7 @@
         const textEl = document.getElementById('storeProductModalCartHintText');
         if (!wrap || !textEl) return;
         const idx = typeof productIndex === 'number' && !Number.isNaN(productIndex) ? productIndex : _productModalCurrentIdx;
-        const line = getCart().find((x) => x.productIndex === idx);
-        const q = line ? line.qty : 0;
+        const q = getCart().filter((x) => x.productIndex === idx).reduce((s, x) => s + x.qty, 0);
         if (q <= 0) {
             wrap.classList.add('hidden');
             textEl.textContent = '';
@@ -926,17 +950,20 @@
     }
 
     function renderCartItemsHtml(items, isDrawer) {
-        return items.map(x => {
+        return items.map((x, cartIndex) => {
+            const displayName = formatStoreOrderItemDisplayName({ name: x.name, selectedAttributes: x.selectedAttributes });
             const imgUrl = x.imageUrl || (storeProductsData && storeProductsData[x.productIndex] && (storeProductsData[x.productIndex].imageUrls?.[0] || storeProductsData[x.productIndex].imageUrl)) || '';
             const imgAttr = imgUrl ? ` data-image-url="${escapeStoreHtml(imgUrl)}"` : '';
             const previewHtml = imgUrl ? `<span class="store-cart-item-preview"><img src="${escapeStoreHtml(imgUrl)}" alt=""></span>` : '';
             const unitStr = `${(x.price).toFixed(0)} ₽`;
             const sumStr = `${(x.price * x.qty).toFixed(0)} ₽`;
-            const nameBlock = `<div class="store-cart-item-name store-cart-item-name-clickable"${imgAttr} data-product-index="${x.productIndex}">${escapeStoreHtml(x.name)}${previewHtml}</div>`;
+            const missAttrs = _cartAttrHighlightActive && cartLineMissingRequiredAttrs(x);
+            const missCls = missAttrs ? ' store-cart-item--needs-attrs' : '';
+            const nameBlock = `<div class="store-cart-item-name store-cart-item-name-clickable"${imgAttr} data-product-index="${x.productIndex}">${escapeStoreHtml(displayName)}${previewHtml}</div>`;
             const qtyBlock = `<div class="store-cart-item-qty">
-                        <button type="button" class="store-cart-qty-btn" data-action="minus" data-index="${x.productIndex}" aria-label="Уменьшить">−</button>
+                        <button type="button" class="store-cart-qty-btn" data-action="minus" data-cart-index="${cartIndex}" aria-label="Уменьшить">−</button>
                         <span class="store-cart-qty-val">${x.qty}</span>
-                        <button type="button" class="store-cart-qty-btn" data-action="plus" data-index="${x.productIndex}" aria-label="Увеличить">+</button>
+                        <button type="button" class="store-cart-qty-btn" data-action="plus" data-cart-index="${cartIndex}" aria-label="Увеличить">+</button>
                     </div>`;
             const stackedRows = `
                     <div class="store-cart-item-drawer-top">
@@ -947,17 +974,17 @@
                         <span class="store-cart-item-drawer-unit"><span class="store-cart-item-unit-label">Цена</span> ${unitStr}</span>
                         <div class="store-cart-item-drawer-actions">
                             <span class="store-cart-item-line-total"><span class="store-cart-item-line-total-label">Стоимость позиции</span> <span class="store-cart-item-sum">${sumStr}</span></span>
-                            <button type="button" class="store-cart-item-remove" data-index="${x.productIndex}" aria-label="Удалить">&times;</button>
+                            <button type="button" class="store-cart-item-remove" data-cart-index="${cartIndex}" aria-label="Удалить">&times;</button>
                         </div>
                     </div>`;
             if (isDrawer) {
                 return `
-                <div class="store-cart-item store-cart-item--drawer" data-product-index="${x.productIndex}">
+                <div class="store-cart-item store-cart-item--drawer${missCls}" data-product-index="${x.productIndex}" data-cart-index="${cartIndex}">
                     ${stackedRows}
                 </div>`;
             }
             return `
-                <div class="store-cart-item store-cart-item--cart-page" data-product-index="${x.productIndex}">
+                <div class="store-cart-item store-cart-item--cart-page${missCls}" data-product-index="${x.productIndex}" data-cart-index="${cartIndex}">
                     ${stackedRows}
                 </div>`;
         }).join('');
@@ -967,6 +994,57 @@
         const d = document.createElement('div');
         d.textContent = s;
         return d.innerHTML;
+    }
+
+    function normalizeStoreProductAttributes(raw) {
+        if (!raw || !Array.isArray(raw)) return [];
+        const out = [];
+        for (const a of raw) {
+            if (!a || typeof a !== 'object') continue;
+            const name = String(a.name || '').trim();
+            if (!name) continue;
+            let values = [];
+            if (Array.isArray(a.values)) {
+                values = [...new Set(a.values.map((v) => String(v).trim()).filter(Boolean))];
+            } else if (typeof a.values === 'string') {
+                values = [...new Set(a.values.split(/[,;]/).map((t) => t.trim()).filter(Boolean))];
+            }
+            if (!values.length) continue;
+            out.push({ name, values });
+        }
+        return out;
+    }
+
+    function stripStoreOrderItemNameToBase(name) {
+        const s = String(name || '').trim();
+        if (!s) return '';
+        return s.replace(/\s*\([^)]*\)\s*$/, '').trim() || s;
+    }
+
+    function formatStoreOrderItemAttributesSuffix(selectedAttributes) {
+        if (!selectedAttributes || typeof selectedAttributes !== 'object') return '';
+        const keys = Object.keys(selectedAttributes).filter((k) => String(selectedAttributes[k] || '').trim());
+        if (!keys.length) return '';
+        keys.sort((a, b) => a.localeCompare(b, 'ru'));
+        const parts = keys.map((k) => `${k}: ${String(selectedAttributes[k]).trim()}`);
+        return ` (${parts.join('; ')})`;
+    }
+
+    function formatStoreOrderItemDisplayName(it) {
+        const raw = (it && it.name) ? String(it.name) : 'Товар';
+        const sa = it && it.selectedAttributes;
+        const hasSel = sa && typeof sa === 'object' && Object.keys(sa).some((k) => String(sa[k] || '').trim());
+        const base = hasSel ? (stripStoreOrderItemNameToBase(raw) || raw) : raw;
+        return base + formatStoreOrderItemAttributesSuffix(sa);
+    }
+
+    function sameCartSelectedAttrs(a, b) {
+        const ma = a && typeof a === 'object' ? a : {};
+        const mb = b && typeof b === 'object' ? b : {};
+        const ka = Object.keys(ma).filter((k) => String(ma[k] || '').trim()).sort();
+        const kb = Object.keys(mb).filter((k) => String(mb[k] || '').trim()).sort();
+        if (ka.length !== kb.length) return false;
+        return ka.every((k) => String(ma[k] || '').trim() === String(mb[k] || '').trim());
     }
 
     async function getStoreCategoriesTree(uid) {
@@ -1068,6 +1146,9 @@
         const discountPct = (hasDiscount && priceVal > 0) ? Math.round((1 - priceSaleVal / priceVal) * 100) : 0;
         const discountBadge = (priceSaleVal != null && priceSaleVal > 0 && priceVal > priceSaleVal)
             ? '<span class="store-card-badge store-card-badge-discount">Скидка ' + discountPct + '%</span>' : '';
+        const storeAttrs = normalizeStoreProductAttributes(p.attributes);
+        const hasStoreAttrs = storeAttrs.length > 0;
+        const addBtnLabel = hasStoreAttrs ? 'Выбрать' : 'Добавить в корзину';
         return `
             <article class="store-card" data-product-index="${idx}">
                 <div class="store-card-media-wrap">
@@ -1079,7 +1160,7 @@
                     <div class="store-card-desc-area">${descHtml}</div>
                     <div class="store-card-bottom">
                         <div class="store-card-price-wrap">${priceHtml}</div>
-                        <button type="button" class="btn-primary store-card-add" data-index="${idx}">Добавить в корзину</button>
+                        <button type="button" class="btn-primary store-card-add" data-index="${idx}">${escapeStoreHtml(addBtnLabel)}</button>
                     </div>
                 </div>
             </article>`;
@@ -1092,8 +1173,13 @@
             btn.dataset.storeBound = '1';
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const idx = parseInt(btn.dataset.index);
-                if (!Number.isNaN(idx)) {
+                const idx = parseInt(btn.dataset.index, 10);
+                if (Number.isNaN(idx)) return;
+                const pr = storeProductsData[idx];
+                const sa = normalizeStoreProductAttributes(pr && pr.attributes);
+                if (sa.length) {
+                    openProductModal(idx);
+                } else {
                     addToCart(idx);
                 }
                 // Лёгкая анимация отклика
@@ -1627,6 +1713,29 @@
         const navTitleEl = document.getElementById('storeProductModalNavTitle');
         if (navTitleEl) navTitleEl.textContent = modalTitleText;
         document.getElementById('storeProductModalArticle').textContent = p.systemId ? 'Артикул: ' + p.systemId : '';
+        const modalAttrs = normalizeStoreProductAttributes(p.attributes);
+        const attrsWrap = document.getElementById('storeProductModalAttrs');
+        if (attrsWrap) {
+            if (!modalAttrs.length) {
+                attrsWrap.classList.add('hidden');
+                attrsWrap.innerHTML = '';
+            } else {
+                attrsWrap.classList.remove('hidden');
+                attrsWrap.innerHTML = modalAttrs.map((attr, j) => {
+                    const ph = `Выберите (${attr.name})`;
+                    const opts = (attr.values || []).map((v) =>
+                        `<option value="${escapeStoreHtml(String(v))}">${escapeStoreHtml(String(v))}</option>`
+                    ).join('');
+                    return `<div class="store-product-modal-attr-row">
+                        <label for="storeProductModalAttr_${j}">${escapeStoreHtml(attr.name)}</label>
+                        <select id="storeProductModalAttr_${j}" class="store-product-modal-attr-select">
+                            <option value="">${escapeStoreHtml(ph)}</option>
+                            ${opts}
+                        </select>
+                    </div>`;
+                }).join('');
+            }
+        }
         const priceVal = parseFloat(p.price) || 0;
         const priceSaleVal = (p.priceSale != null && p.priceSale !== '') ? parseFloat(p.priceSale) : null;
         const hasDiscount = priceSaleVal != null && priceSaleVal > 0 && priceVal > priceSaleVal;
@@ -1739,6 +1848,16 @@
     function initProductModalHandlers() {
         const modal = document.getElementById('storeProductModal');
         if (!modal) return;
+        const attrsWrapRoot = document.getElementById('storeProductModalAttrs');
+        if (attrsWrapRoot && attrsWrapRoot.dataset.errDelegation !== '1') {
+            attrsWrapRoot.dataset.errDelegation = '1';
+            attrsWrapRoot.addEventListener('change', (e) => {
+                const t = e.target;
+                if (t && t.classList && t.classList.contains('store-product-modal-attr-select')) {
+                    t.classList.remove('error');
+                }
+            });
+        }
         const backdropEl = modal.querySelector('.store-product-modal-backdrop');
         if (backdropEl) backdropEl.addEventListener('click', closeProductModal);
         const closeEl = modal.querySelector('.store-product-modal-close');
@@ -1754,9 +1873,26 @@
             modalAddBtn.addEventListener('click', () => {
                 const idx = parseInt(modalAddBtn.dataset.index, 10);
                 const qty = parseInt(document.getElementById('storeProductModalQty').value, 10) || 1;
-                if (!Number.isNaN(idx)) {
-                    addToCart(idx, Math.max(1, Math.min(999, qty)));
+                if (Number.isNaN(idx)) return;
+                const pr = storeProductsData[idx];
+                const reqAttrs = normalizeStoreProductAttributes(pr && pr.attributes);
+                const selAttrs = {};
+                let attrsOk = true;
+                reqAttrs.forEach((attr, j) => {
+                    const el = document.getElementById(`storeProductModalAttr_${j}`);
+                    const v = el ? String(el.value || '').trim() : '';
+                    if (!v) {
+                        attrsOk = false;
+                        if (el) el.classList.add('error');
+                    } else {
+                        selAttrs[attr.name] = v;
+                        if (el) el.classList.remove('error');
+                    }
+                });
+                if (!attrsOk) {
+                    return;
                 }
+                addToCart(idx, Math.max(1, Math.min(999, qty)), selAttrs);
                 // Анимация отклика, модалка при этом не закрывается
                 modalAddBtn.classList.add('store-card-add--pulse');
                 setTimeout(() => {
@@ -2190,8 +2326,9 @@
             }
         }
         const name = (item && item.name) ? String(item.name).trim() : '';
-        if (name) {
-            const byName = list.find((p) => (p.name || '').trim() === name);
+        const baseName = name ? (stripStoreOrderItemNameToBase(name) || name) : '';
+        if (baseName) {
+            const byName = list.find((p) => (p.name || '').trim() === baseName);
             if (byName) {
                 const urls = Array.isArray(byName.imageUrls) ? byName.imageUrls : [];
                 return urls[0] || byName.imageUrl || '';
@@ -2205,11 +2342,13 @@
         const price = Math.max(0, parseFloat(i && i.price) || 0);
         let total = i && i.total != null ? parseFloat(i.total) : NaN;
         if (!Number.isFinite(total)) total = price * qty;
+        const sa = i && i.selectedAttributes && typeof i.selectedAttributes === 'object' ? { ...i.selectedAttributes } : {};
         return {
             name: (i && i.name) ? String(i.name) : 'Товар',
             qty,
             price,
-            total: Math.round(total * 100) / 100
+            total: Math.round(total * 100) / 100,
+            selectedAttributes: sa
         };
     }
 
@@ -2250,10 +2389,14 @@
                         const rawItem = o.items[lineIdx];
                         const previewUrl = getAccountOrderItemImageUrl(rawItem || { name: line.name });
                         const prev = previewUrl ? `<span class="store-account-order-line-preview"><img src="${escapeStoreHtml(previewUrl)}" alt=""></span>` : '';
+                        const lineDisplay = formatStoreOrderItemDisplayName({
+                            name: line.name,
+                            selectedAttributes: line.selectedAttributes
+                        });
                         return `<div class="store-account-order-line">
                             <span class="store-account-order-line-num">${lineIdx + 1}</span>
                             <div class="store-account-order-line-name-wrap">
-                                <span class="store-account-order-line-name">${escapeStoreHtml(line.name)}</span>
+                                <span class="store-account-order-line-name">${escapeStoreHtml(lineDisplay)}</span>
                                 ${prev}
                             </div>
                             <span class="store-account-order-line-price">${line.price.toFixed(0)}&nbsp;₽</span>
@@ -2332,12 +2475,12 @@
         list.querySelectorAll('.store-cart-qty-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const action = btn.dataset.action;
-                const idx = parseInt(btn.dataset.index);
+                const idx = parseInt(btn.dataset.cartIndex, 10);
                 updateCartQty(idx, action === 'plus' ? 1 : -1);
             });
         });
         list.querySelectorAll('.store-cart-item-remove').forEach(btn => {
-            btn.addEventListener('click', () => removeFromCart(parseInt(btn.dataset.index)));
+            btn.addEventListener('click', () => removeFromCart(parseInt(btn.dataset.cartIndex, 10)));
         });
         list.querySelectorAll('.store-cart-item-name-clickable').forEach(el => {
             el.addEventListener('click', () => openProductModal(parseInt(el.dataset.productIndex)));
@@ -2459,13 +2602,35 @@
             return;
         }
 
+        let cartAttrsInvalid = false;
+        for (let c = 0; c < items.length; c++) {
+            if (cartLineMissingRequiredAttrs(items[c])) cartAttrsInvalid = true;
+        }
+        if (cartAttrsInvalid) {
+            _cartAttrHighlightActive = true;
+            closeCheckoutModal();
+            location.hash = 'cart';
+            applyRoute();
+            updateCartUI();
+            return;
+        }
+
         const total = getCartTotal();
         const user = firebase.auth().currentUser;
         const orderNumber = await getNextGlobalStoreOrderNumber('ИМ');
         const orderData = {
             ownerUid: String(storeOwnerUid),
             subdomain: storeSubdomain || '',
-            items: items.map(x => ({ name: x.name, price: x.price, qty: x.qty, productId: x.productId })),
+            items: items.map((x) => {
+                const baseNm = stripStoreOrderItemNameToBase(x.name) || x.name;
+                const it = { name: baseNm, price: x.price, qty: x.qty, productId: x.productId || null };
+                const sa = x.selectedAttributes && typeof x.selectedAttributes === 'object' ? x.selectedAttributes : {};
+                const keys = Object.keys(sa).filter((k) => String(sa[k] || '').trim());
+                if (keys.length) {
+                    it.selectedAttributes = keys.reduce((acc, k) => { acc[k] = String(sa[k]).trim(); return acc; }, {});
+                }
+                return it;
+            }),
             total: Math.round(total * 100) / 100,
             orderNumber,
             source: 'store',
@@ -2529,13 +2694,13 @@
                 const btn = e.target.closest('.store-cart-qty-btn');
                 if (btn) {
                     const action = btn.dataset.action;
-                    const idx = parseInt(btn.dataset.index);
+                    const idx = parseInt(btn.dataset.cartIndex, 10);
                     updateCartQty(idx, action === 'plus' ? 1 : -1);
                     e.preventDefault();
                 }
                 const remove = e.target.closest('.store-cart-item-remove');
                 if (remove) {
-                    removeFromCart(parseInt(remove.dataset.index));
+                    removeFromCart(parseInt(remove.dataset.cartIndex, 10));
                     e.preventDefault();
                 }
                 const nameClick = e.target.closest('.store-cart-item-name-clickable');
