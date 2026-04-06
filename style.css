@@ -1923,6 +1923,48 @@ td:nth-last-child(2) {
 .writeoff-table-inner { display: flex; flex-direction: column; min-height: 0; min-width: 1100px; flex: 1; }
 .writeoff-table-header { flex-shrink: 0; overflow: hidden; padding-right: 17px; box-sizing: border-box; background: var(--color-bg); border-bottom: 2px solid var(--color-border); }
 .writeoff-table-body-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
+/* Меню «Кол-во в продажу» у строки Подготовлено (кнопка ₽) — fixed, чтобы не обрезалось скроллом таблицы */
+.writeoff-prepared-sale-dropdown {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+}
+.writeoff-prepared-sale-menu {
+    position: fixed;
+    z-index: 100050;
+    min-width: 200px;
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    padding: 8px 0;
+}
+.writeoff-prepared-sale-menu.hidden {
+    display: none !important;
+}
+.writeoff-prepared-sale-menu-label {
+    padding: 6px 14px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-light, #64748b);
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 4px;
+}
+.writeoff-prepared-sale-option {
+    display: block;
+    width: 100%;
+    padding: 8px 14px;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 14px;
+    color: var(--color-text);
+    cursor: pointer;
+}
+.writeoff-prepared-sale-option:hover {
+    background: var(--color-bg, #f1f5f9);
+}
+
 .writeoff-table-header table,
 .writeoff-table-body-scroll table { table-layout: fixed; width: 100%; }
 .writeoff-table-header thead { background: var(--color-bg); border-bottom: none; }
