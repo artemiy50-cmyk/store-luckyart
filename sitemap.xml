@@ -6,17 +6,17 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://luckyart.my-3d-print.ru/?tovar=angel-vdohnovenie</loc>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=angel-dlya-vdohnovenie</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luckyart.my-3d-print.ru/?tovar=domiki-2-sht</loc>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=domiki-2-sht-vysota-105sm-i-12sm</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luckyart.my-3d-print.ru/?tovar=domiki-belye-2-sht</loc>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=domiki-belye-2-sht-vysota-85sm</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -32,6 +32,21 @@
   </url>
   <url>
     <loc>https://luckyart.my-3d-print.ru/?tovar=yaytso-s-ushkami-podves-3-shtuki-raznogo-tsveta</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=angel-dlya-vdohnoveniya</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=angel-dlya-vdohnoveniya-2</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=mishka</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
