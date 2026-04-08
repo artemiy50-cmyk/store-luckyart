@@ -682,6 +682,17 @@
         document.documentElement.style.setProperty('--store-tabs-section-bg', tabsBg);
         document.documentElement.style.setProperty('--store-swimlane-new-color', tabsBg);
         document.documentElement.style.setProperty('--store-swimlane-popular-color', tabsBg);
+
+        // Цвета бейджей и табов «Популярные / Новинки / Скидка»
+        let popularColor = storeConfig && storeConfig.popularBadgeColor ? String(storeConfig.popularBadgeColor) : '#16a34a';
+        let newColor = storeConfig && storeConfig.newBadgeColor ? String(storeConfig.newBadgeColor) : '#2563eb';
+        let discountColor = storeConfig && storeConfig.discountBadgeColor ? String(storeConfig.discountBadgeColor) : '#ef4444';
+        if (popularColor && !popularColor.startsWith('#')) popularColor = '#' + popularColor;
+        if (newColor && !newColor.startsWith('#')) newColor = '#' + newColor;
+        if (discountColor && !discountColor.startsWith('#')) discountColor = '#' + discountColor;
+        document.documentElement.style.setProperty('--store-badge-popular-bg', popularColor);
+        document.documentElement.style.setProperty('--store-badge-new-bg', newColor);
+        document.documentElement.style.setProperty('--store-badge-discount-bg', discountColor);
     }
 
     /**

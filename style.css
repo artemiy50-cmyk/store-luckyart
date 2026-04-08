@@ -2959,24 +2959,24 @@ body.store-page #storeRoot {
     opacity: 0.92;
 }
 .store-section-tabs .store-tabs-nav .store-tab--popular:not(.store-tab-disabled) {
-    background: rgba(22, 163, 74, 0.45) !important;
+    background: color-mix(in srgb, var(--store-badge-popular-bg, #16a34a) 45%, transparent) !important;
 }
 .store-section-tabs .store-tabs-nav .store-tab--popular.store-tab-active {
-    background: #16a34a !important;
+    background: var(--store-badge-popular-bg, #16a34a) !important;
     color: #fff !important;
 }
 .store-section-tabs .store-tabs-nav .store-tab--new:not(.store-tab-disabled) {
-    background: rgba(37, 99, 235, 0.45) !important;
+    background: color-mix(in srgb, var(--store-badge-new-bg, #2563eb) 45%, transparent) !important;
 }
 .store-section-tabs .store-tabs-nav .store-tab--new.store-tab-active {
-    background: var(--color-primary, #2563eb) !important;
+    background: var(--store-badge-new-bg, #2563eb) !important;
     color: #fff !important;
 }
 .store-section-tabs .store-tabs-nav .store-tab--discount:not(.store-tab-disabled) {
-    background: rgba(220, 38, 38, 0.45) !important;
+    background: color-mix(in srgb, var(--store-badge-discount-bg, #ef4444) 45%, transparent) !important;
 }
 .store-section-tabs .store-tabs-nav .store-tab--discount.store-tab-active {
-    background: #dc2626 !important;
+    background: var(--store-badge-discount-bg, #ef4444) !important;
     color: #fff !important;
 }
 .store-tab-disabled {
@@ -3408,7 +3408,33 @@ body.store-page #storeRoot {
         gap: 0;
     }
     body.store-page .store-catalog-tiles {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    /* На мобильном скрываем описание, оставляя только заголовок и блок цены/кнопки */
+    body.store-page .store-card-desc-area,
+    body.store-page .store-card-desc,
+    body.store-page .store-card-spacer {
+        display: none !important;
+    }
+    /* Фиксируем визуальную высоту блока названия для ровного выравнивания карточек */
+    body.store-page .store-card-title {
+        margin-bottom: 8px;
+        line-height: 1.25;
+        min-height: calc(1.25em * 2);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    /* Размер и отступы карточек в секции табов — как у каталога ниже (2 карточки в ряд) */
+    body.store-page .store-section-tabs .store-carousel-inner-4 {
+        gap: 10px;
+    }
+    body.store-page .store-section-tabs .store-carousel-inner-4 .store-card {
+        flex: 0 0 calc((100% - 10px) / 2);
+        min-width: calc((100% - 10px) / 2);
+        width: calc((100% - 10px) / 2);
     }
     body.store-page .store-section-tabs .store-tabs-nav .store-tab,
     body.store-page .store-section-tabs .store-tabs-nav .store-tab-active {
@@ -3463,15 +3489,15 @@ body.store-page #storeRoot {
     letter-spacing: 0.5px;
 }
 .store-card-badge-new {
-    background: var(--color-primary);
+    background: var(--store-badge-new-bg, var(--color-primary));
     color: white;
 }
 .store-card-badge-popular {
-    background: #16a34a;
+    background: var(--store-badge-popular-bg, #16a34a);
     color: white;
 }
 .store-card-badge-discount {
-    background: #ef4444;
+    background: var(--store-badge-discount-bg, #ef4444);
     color: white;
 }
 .store-card-badge + .store-card-badge { top: 36px; }
@@ -4759,15 +4785,15 @@ body.store-page #storeRoot {
     letter-spacing: 0.5px;
 }
 .store-product-modal-badge-new {
-    background: var(--color-primary);
+    background: var(--store-badge-new-bg, var(--color-primary));
     color: white;
 }
 .store-product-modal-badge-popular {
-    background: #16a34a;
+    background: var(--store-badge-popular-bg, #16a34a);
     color: white;
 }
 .store-product-modal-badge-discount {
-    background: #ef4444;
+    background: var(--store-badge-discount-bg, #ef4444);
     color: white;
 }
 .store-product-modal-desc {

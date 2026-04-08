@@ -60,4 +60,19 @@
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=krik-73sm-2</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=kukla-obereg-uspeshnitsa</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=ovechka-s-kolokolchikom</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
 </urlset>
