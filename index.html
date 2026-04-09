@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="yandex-verification" content="d92bf21701955a45" />
-<title>Магазин 3D-печати</title>
+        <meta name="yandex-verification" content="d92bf21701955a45" />
+
+    <title>Магазин 3D-печати</title>
 
     <!-- Firebase (тот же проект, что и Manager) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -130,6 +131,7 @@
             <div id="storeCartList" class="store-cart-list"></div>
             <div id="storeCartEmpty" class="store-cart-empty hidden">Корзина пуста</div>
             <div id="storeCartFooter" class="store-cart-footer hidden">
+                <div id="storeCartDiscountRow" class="store-cart-discount hidden">Скидка на заказ <span id="storeCartDiscountPercentVal">0</span>%: <span id="storeCartDiscountVal">0</span> ₽</div>
                 <div class="store-cart-total">Итого: <span id="storeCartTotalVal">0</span> ₽</div>
                 <div class="store-cart-comment-row">
                     <label for="storeCartComment">Комментарий к заказу</label>
@@ -152,6 +154,7 @@
             <div id="storeCartDrawerList" class="store-cart-drawer-list"></div>
             <div id="storeCartDrawerEmpty" class="store-cart-drawer-empty">Корзина пуста</div>
             <div id="storeCartDrawerFooter" class="store-cart-drawer-footer hidden">
+                <div id="storeCartDrawerDiscountRow" class="store-cart-discount store-cart-drawer-discount hidden">Скидка на заказ <span id="storeCartDrawerDiscountPercentVal">0</span>%: <span id="storeCartDrawerDiscountVal">0</span> ₽</div>
                 <div class="store-cart-drawer-total">Итого: <span id="storeCartDrawerTotalVal">0</span> ₽</div>
                 <button type="button" id="storeCartDrawerToPage" class="btn-primary store-cart-drawer-to-page">Перейти в корзину</button>
             </div>

@@ -3479,7 +3479,7 @@ body.store-page #storeRoot {
 }
 .store-card-badge {
     position: absolute;
-    top: 8px;
+    bottom: 8px;
     left: 8px;
     padding: 4px 10px;
     font-size: 11px;
@@ -3500,8 +3500,8 @@ body.store-page #storeRoot {
     background: var(--store-badge-discount-bg, #ef4444);
     color: white;
 }
-.store-card-badge + .store-card-badge { top: 36px; }
-.store-card-badge + .store-card-badge + .store-card-badge { top: 64px; }
+.store-card-badge + .store-card-badge { bottom: 36px; }
+.store-card-badge + .store-card-badge + .store-card-badge { bottom: 64px; }
 .store-card-fav {
     position: absolute; top: 8px; right: 8px;
     width: 32px; height: 32px;
@@ -3648,6 +3648,20 @@ body.store-page #storeRoot {
 .store-account-order-date-part {
     font-size: 14px;
     color: var(--color-text-light);
+}
+.store-account-order-status-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-bg) 70%, var(--color-surface) 30%);
+    color: #475569;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
 }
 .store-account-order-lines-head {
     display: grid;
@@ -3846,6 +3860,12 @@ body.store-page #storeRoot {
     font-size: 22px;
     font-weight: 600;
     margin: 0 0 20px 0;
+}
+.store-cart-discount {
+    font-size: 14px;
+    color: var(--color-success, #16a34a);
+    margin: 0 0 8px 0;
+    font-weight: 600;
 }
 .store-checkout-btn {
     width: auto;
@@ -4179,6 +4199,9 @@ body.store-page #storeRoot {
     font-weight: 600;
     margin-bottom: 12px;
 }
+.store-cart-drawer-discount {
+    margin-bottom: 6px;
+}
 .store-cart-drawer-to-page {
     width: 100%;
     padding: 14px 24px;
@@ -4313,19 +4336,26 @@ body.store-page #storeRoot {
         align-items: center;
         gap: 16px;
         flex-shrink: 0;
-        width: auto;
+        width: clamp(300px, 32vw, 360px);
         min-width: 0;
         grid-template-columns: unset;
+        justify-content: space-between;
     }
     .store-cart-page .store-cart-item--cart-page .store-cart-item-drawer-unit {
         white-space: nowrap;
         overflow: visible;
         text-overflow: unset;
         flex-shrink: 0;
+        flex: 0 0 90px;
     }
     .store-cart-page .store-cart-item--cart-page .store-cart-item-drawer-actions {
-        flex-shrink: 0;
+        flex: 1 1 auto;
         gap: 12px;
+        min-width: 0;
+    }
+    .store-cart-page .store-cart-item--cart-page .store-cart-item-line-total {
+        flex: 1 1 auto;
+        min-width: 150px;
     }
     .store-cart-page .store-cart-item--cart-page .store-cart-item-sum {
         min-width: 70px;
@@ -5678,6 +5708,10 @@ body.store-page #storeRoot {
 .store-products-table-inner { display: flex; flex-direction: column; min-height: 0; min-width: 980px; flex: 1; }
 .store-products-table-header { flex-shrink: 0; overflow: hidden; padding-right: 17px; box-sizing: border-box; background: var(--color-bg); border-bottom: 2px solid var(--color-border); }
 .store-products-table-body-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
+.store-products-controls-left { flex-direction: column; align-items: stretch; width: 100%; gap: 10px; }
+.store-products-controls-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.store-products-controls-row-top .search-container { min-width: 260px; }
+.store-products-controls-row-bottom { justify-content: flex-start; }
 .store-products-table-header table,
 .store-products-table-body-scroll table { table-layout: fixed; width: 100%; }
 .store-products-table-header thead { background: var(--color-bg); border-bottom: none; }

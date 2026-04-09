@@ -61,7 +61,7 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luckyart.my-3d-print.ru/?tovar=krik-73sm-2</loc>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=krik-5-sm</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -72,6 +72,21 @@
   </url>
   <url>
     <loc>https://luckyart.my-3d-print.ru/?tovar=ovechka-s-kolokolchikom</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=skelet-zloy-kot-16sm</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=skelet-zloy-kot-13sm</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=skelet-drakon</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

@@ -741,6 +741,9 @@
     let _storeSearchTerm = '';
     /** После попытки оформить заказ без выбранных характеристик — подсветка строк в корзине. */
     let _cartAttrHighlightActive = false;
+    let _cartDiscountRequestSeq = 0;
+    let _cartDiscountState = { baseTotal: 0, finalTotal: 0, percent: 0, amount: 0, eligible: false };
+    let _firstOrderCheckCache = { key: '', hasNonCancelled: false, checkedAt: 0 };
 
     /** Витрина и корзина: скрыты выключенные из каталога и неактивные товары */
     function isStoreProductVisibleOnStorefront(p) {
@@ -903,6 +906,92 @@
         return getCart().reduce((s, x) => s + x.price * x.qty, 0);
     }
 
+    function getConfiguredFirstOrderDiscountPercent() {
+        const raw = parseFloat(storeConfig && storeConfig.firstOrderDiscountPercent != null ? storeConfig.firstOrderDiscountPercent : '');
+        if (!Number.isFinite(raw) || raw <= 0) return 0;
+        return Math.min(100, raw);
+    }
+
+    async function hasBuyerNonCancelledOrdersInCurrentStore(buyerUid, buyerEmail) {
+        const uid = String(buyerUid || '').trim();
+        const emailRaw = String(buyerEmail || '').trim();
+        const emailLower = emailRaw.toLowerCase();
+        const key = `${storeOwnerUid || ''}|${uid}|${emailLower}`;
+        const now = Date.now();
+        if (_firstOrderCheckCache.key === key && (now - _firstOrderCheckCache.checkedAt) < 30000) {
+            return _firstOrderCheckCache.hasNonCancelled;
+        }
+        let has = false;
+        const ordersRef = firebase.database().ref('storeOrders');
+        if (uid) {
+            const snapUid = await ordersRef.orderByChild('buyerUid').equalTo(uid).once('value');
+            snapUid.forEach((child) => {
+                const o = child.val();
+                if (o && o.ownerUid === storeOwnerUid && (o.status || 'new') !== 'cancelled') has = true;
+            });
+        }
+        if (!has && emailRaw) {
+            const checkByEmail = async (em) => {
+                const snapEmail = await ordersRef.orderByChild('buyerEmail').equalTo(em).once('value');
+                snapEmail.forEach((child) => {
+                    const o = child.val();
+                    if (o && o.ownerUid === storeOwnerUid && (o.status || 'new') !== 'cancelled') has = true;
+                });
+            };
+            await checkByEmail(emailRaw);
+            if (!has && emailLower && emailLower !== emailRaw) await checkByEmail(emailLower);
+        }
+        _firstOrderCheckCache = { key, hasNonCancelled: has, checkedAt: now };
+        return has;
+    }
+
+    async function calcFirstOrderDiscountForCart(baseTotal, buyerUid, buyerEmail) {
+        const percent = getConfiguredFirstOrderDiscountPercent();
+        if (!(percent > 0) || !(baseTotal > 0) || !storeOwnerUid) {
+            return { baseTotal, finalTotal: baseTotal, percent: 0, amount: 0, eligible: false };
+        }
+        const hasHistory = await hasBuyerNonCancelledOrdersInCurrentStore(buyerUid, buyerEmail);
+        if (hasHistory) {
+            return { baseTotal, finalTotal: baseTotal, percent: 0, amount: 0, eligible: false };
+        }
+        const amount = Math.round((baseTotal * percent / 100) * 100) / 100;
+        const finalTotal = Math.max(0, baseTotal - amount);
+        return { baseTotal, finalTotal, percent, amount, eligible: true };
+    }
+
+    function renderCartDiscountRows(discountState, itemsCount) {
+        const pageRow = document.getElementById('storeCartDiscountRow');
+        const pagePct = document.getElementById('storeCartDiscountPercentVal');
+        const pageAmt = document.getElementById('storeCartDiscountVal');
+        const drawerRow = document.getElementById('storeCartDrawerDiscountRow');
+        const drawerPct = document.getElementById('storeCartDrawerDiscountPercentVal');
+        const drawerAmt = document.getElementById('storeCartDrawerDiscountVal');
+        const show = itemsCount > 0 && discountState && discountState.eligible && discountState.amount > 0;
+        if (pageRow) pageRow.classList.toggle('hidden', !show);
+        if (drawerRow) drawerRow.classList.toggle('hidden', !show);
+        if (show) {
+            if (pagePct) pagePct.textContent = String(Math.round(discountState.percent));
+            if (drawerPct) drawerPct.textContent = String(Math.round(discountState.percent));
+            if (pageAmt) pageAmt.textContent = discountState.amount.toFixed(0);
+            if (drawerAmt) drawerAmt.textContent = discountState.amount.toFixed(0);
+        }
+    }
+
+    async function refreshCartDiscountAndTotals(baseTotal, itemsCount) {
+        const seq = ++_cartDiscountRequestSeq;
+        const user = firebase.auth().currentUser;
+        const buyerUid = user && user.uid ? user.uid : '';
+        const buyerEmail = user && user.email ? user.email : '';
+        const ds = await calcFirstOrderDiscountForCart(baseTotal, buyerUid, buyerEmail);
+        if (seq !== _cartDiscountRequestSeq) return;
+        _cartDiscountState = ds;
+        const pageTotalVal = document.getElementById('storeCartTotalVal');
+        const drawerTotalVal = document.getElementById('storeCartDrawerTotalVal');
+        if (pageTotalVal) pageTotalVal.textContent = ds.finalTotal.toFixed(0);
+        if (drawerTotalVal) drawerTotalVal.textContent = ds.finalTotal.toFixed(0);
+        renderCartDiscountRows(ds, itemsCount);
+    }
+
     /**
      * Подсказка в модалке товара: сколько уже в корзине (обновлять при открытии и после setCart).
      */
@@ -949,7 +1038,11 @@
         if (drawerList) drawerList.innerHTML = renderCartItemsHtml(items, true);
         if (drawerEmpty) drawerEmpty.classList.toggle('hidden', items.length > 0);
         if (drawerFooter) drawerFooter.classList.toggle('hidden', items.length === 0);
-        if (drawerTotalVal) drawerTotalVal.textContent = total.toFixed(0);
+        if (drawerTotalVal) {
+            const shown = (_cartDiscountState.baseTotal === total) ? _cartDiscountState.finalTotal : total;
+            drawerTotalVal.textContent = shown.toFixed(0);
+        }
+        renderCartDiscountRows((_cartDiscountState.baseTotal === total) ? _cartDiscountState : { eligible: false, amount: 0, percent: 0 }, items.length);
 
         // Страница /cart
         if (getRoute().type === 'cart') renderCartPage();
@@ -958,6 +1051,9 @@
         if (productModal && !productModal.classList.contains('hidden')) {
             refreshStoreProductModalCartHint();
         }
+        refreshCartDiscountAndTotals(total, items.length).catch((e) => {
+            console.warn('[Store] cart discount refresh failed:', e);
+        });
     }
 
     function renderCartItemsHtml(items, isDrawer) {
@@ -1223,6 +1319,25 @@
         });
     }
 
+    // Базовая сортировка витрины: последние добавленные (новые) сверху.
+    function sortStorefrontProductsNewestFirst(products) {
+        const arr = Array.isArray(products) ? products.slice() : [];
+        arr.sort((a, b) => {
+            const sidA = String((a && a.systemId) || '');
+            const sidB = String((b && b.systemId) || '');
+            const bySid = sidB.localeCompare(sidA);
+            if (bySid !== 0) return bySid;
+            const dateA = String((a && a.date) || '');
+            const dateB = String((b && b.date) || '');
+            const byDate = dateB.localeCompare(dateA);
+            if (byDate !== 0) return byDate;
+            const ia = Number(a && a._origIdx != null ? a._origIdx : -1);
+            const ib = Number(b && b._origIdx != null ? b._origIdx : -1);
+            return ib - ia;
+        });
+        return arr;
+    }
+
     function renderMainPage() {
         const mainEl = document.getElementById('storeMainPage');
         if (!mainEl) return;
@@ -1230,6 +1345,7 @@
         const all = storeProductsData || [];
         let products = all.map((p, idx) => ({ ...p, _origIdx: idx })).filter(p => isStoreProductVisibleOnStorefront(p));
         products = filterBySearch(products);
+        products = sortStorefrontProductsNewestFirst(products);
         const newProducts = products.filter(p => !!p.isNew);
         const popularProducts = products.filter(p => !!p.isPopular);
         const discountProducts = products.filter(p => {
@@ -1277,51 +1393,8 @@
             </section>`;
         }
 
-        const byCategory = {};
-        products.forEach(p => {
-            const catIds = Array.isArray(p.categoryIds) ? p.categoryIds : [];
-            if (catIds.length) {
-                catIds.forEach(cid => {
-                    if (!byCategory[cid]) byCategory[cid] = [];
-                    byCategory[cid].push(p);
-                });
-            } else {
-                if (!byCategory['_none']) byCategory['_none'] = [];
-                byCategory['_none'].push(p);
-            }
-        });
-
-        const catOrder = (storeCategoriesData || []).slice();
-        const flatCats = [];
-        const walk = (nodes) => { nodes.forEach(n => { flatCats.push(n); if (n.children?.length) walk(n.children); }); };
-        walk(catOrder);
-        const allSectionProducts = [];
-        flatCats.forEach(c => {
-            if (byCategory[c.id]) allSectionProducts.push(...byCategory[c.id]);
-        });
-        if (byCategory['_none']) allSectionProducts.push(...byCategory['_none']);
-
-        if (allSectionProducts.length > 0) {
-            const sortedProducts = [];
-            const added = new Set();
-            if (flatCats.length > 0) {
-                flatCats.forEach(c => {
-                    if (!byCategory[c.id]) return;
-                    byCategory[c.id].forEach(p => {
-                        if (!added.has(p._origIdx)) { added.add(p._origIdx); sortedProducts.push(p); }
-                    });
-                });
-            }
-            if (byCategory['_none']) {
-                byCategory['_none'].forEach(p => {
-                    if (!added.has(p._origIdx)) { added.add(p._origIdx); sortedProducts.push(p); }
-                });
-            }
-            products.forEach(p => {
-                if (!added.has(p._origIdx)) sortedProducts.push(p);
-            });
-
-            const cardsHtml = sortedProducts.map(p => buildProductCardHtml(p)).join('');
+        if (products.length > 0) {
+            const cardsHtml = products.map(p => buildProductCardHtml(p)).join('');
             html += `<section class="store-section store-section-all-products">
                 <h2 class="store-section-title">Все товары</h2>
                 <div class="store-catalog store-catalog-tiles">${cardsHtml}</div>
@@ -1698,6 +1771,7 @@
         let products = all.map((p, idx) => ({ ...p, _origIdx: idx }))
             .filter(p => isStoreProductVisibleOnStorefront(p) && Array.isArray(p.categoryIds) && p.categoryIds.includes(_selectedCategoryId));
         products = filterBySearch(products);
+        products = sortStorefrontProductsNewestFirst(products);
 
         if (products.length === 0) {
             catalogEl.innerHTML = '<p class="store-catalog-empty">В этой категории пока нет товаров</p>';
@@ -1961,13 +2035,14 @@
         const products = (storeProductsData || [])
             .map((p, idx) => ({ ...p, _origIdx: idx }))
             .filter(p => favIndexes.includes(p._origIdx) && isStoreProductVisibleOnStorefront(p));
+        const sortedProducts = sortStorefrontProductsNewestFirst(products);
 
-        if (products.length === 0) {
+        if (sortedProducts.length === 0) {
             listEl.innerHTML = '';
             listEl.classList.add('hidden');
             if (emptyEl) emptyEl.classList.remove('hidden');
         } else {
-            listEl.innerHTML = products.map(p => buildProductCardHtml(p)).join('');
+            listEl.innerHTML = sortedProducts.map(p => buildProductCardHtml(p)).join('');
             listEl.classList.remove('hidden');
             if (emptyEl) emptyEl.classList.add('hidden');
             bindProductCardEvents(listEl);
@@ -2363,6 +2438,34 @@
         };
     }
 
+    function formatAccountOrderTotalWithDiscount(order) {
+        const totalRaw = parseFloat(order && order.total != null ? order.total : '');
+        if (!Number.isFinite(totalRaw)) return 'Итого: —';
+        const total = totalRaw.toFixed(0);
+        const discountApplied = !!(order && order.firstOrderDiscountApplied);
+        const discountPercentRaw = parseFloat(order && order.discountPercent != null ? order.discountPercent : '');
+        const discountAmountRaw = parseFloat(order && order.discountAmount != null ? order.discountAmount : '');
+        const discountPercent = Number.isFinite(discountPercentRaw) ? Math.round(discountPercentRaw) : 0;
+        const discountAmount = Number.isFinite(discountAmountRaw) ? Math.max(0, Math.round(discountAmountRaw)) : 0;
+        if (!discountApplied || discountPercent <= 0 || discountAmount <= 0) return `Итого: ${total} ₽`;
+        return `Итого: ${total} ₽, с учетом предоставленной скидки ${discountPercent}% (${discountAmount} руб).`;
+    }
+
+    function getAccountOrderStatusLabel(statusRaw) {
+        const status = String(statusRaw || 'new').trim().toLowerCase();
+        const map = {
+            new: 'Новый',
+            awaiting_payment: 'Ожидает оплаты',
+            paid: 'Оплачен',
+            shipped: 'Отгружен',
+            delivered: 'Доставлен',
+            completed: 'Завершен',
+            processed: 'В обработке',
+            cancelled: 'Отменен'
+        };
+        return map[status] || 'Новый';
+    }
+
     async function renderAccountPage() {
         const listEl = document.getElementById('storeAccountOrdersList');
         const emptyEl = document.getElementById('storeAccountOrdersEmpty');
@@ -2395,6 +2498,7 @@
                     const orderNo = (o.orderNumber && String(o.orderNumber).trim())
                         ? normalizeStoreOrderNumberForDisplay(String(o.orderNumber).trim())
                         : (o.id ? `Заказ …${o.id.slice(-6)}` : 'Заказ');
+                    const statusLabel = getAccountOrderStatusLabel(o.status);
                     const lines = Array.isArray(o.items) ? o.items.map(normalizeAccountOrderLine) : [];
                     const linesHtml = lines.map((line, lineIdx) => {
                         const rawItem = o.items[lineIdx];
@@ -2415,7 +2519,7 @@
                             <span class="store-account-order-line-sum">${line.total.toFixed(0)}&nbsp;₽</span>
                         </div>`;
                     }).join('');
-                    const total = (o.total != null) ? parseFloat(o.total).toFixed(0) : '—';
+                    const totalText = formatAccountOrderTotalWithDiscount(o);
                     const commentRaw = o.comment != null ? String(o.comment).trim() : '';
                     const commentBlock = commentRaw
                         ? `<div class="store-account-order-buyer-comment">Комментарий покупателя: ${escapeStoreHtml(commentRaw)}</div>`
@@ -2432,11 +2536,12 @@
                     return `<div class="store-account-order-card">
                         <div class="store-account-order-head">
                             <span class="store-account-order-number">${escapeStoreHtml(orderNo)}</span>
+                            <span class="store-account-order-status-badge">${escapeStoreHtml(statusLabel)}</span>
                             <span class="store-account-order-date-part">${escapeStoreHtml(date)}</span>
                         </div>
                         ${headRow}
                         <div class="store-account-order-lines">${linesHtml}</div>
-                        <div class="store-account-order-total">Итого: ${total} ₽</div>
+                        <div class="store-account-order-total">${escapeStoreHtml(totalText)}</div>
                         ${commentBlock}
                     </div>`;
                 }).join('');
@@ -2478,7 +2583,11 @@
         list.innerHTML = renderCartItemsHtml(items, false);
         if (empty) empty.classList.toggle('hidden', items.length > 0);
         if (footer) footer.classList.toggle('hidden', items.length === 0);
-        if (totalVal) totalVal.textContent = total.toFixed(0);
+        if (totalVal) {
+            const shown = (_cartDiscountState.baseTotal === total) ? _cartDiscountState.finalTotal : total;
+            totalVal.textContent = shown.toFixed(0);
+        }
+        renderCartDiscountRows((_cartDiscountState.baseTotal === total) ? _cartDiscountState : { eligible: false, amount: 0, percent: 0 }, items.length);
 
         if (checkoutBtn) checkoutBtn.onclick = openCheckoutModal;
 
@@ -2626,8 +2735,9 @@
             return;
         }
 
-        const total = getCartTotal();
+        const totalBeforeDiscount = getCartTotal();
         const user = firebase.auth().currentUser;
+        const discountCalc = await calcFirstOrderDiscountForCart(totalBeforeDiscount, user && user.uid ? user.uid : '', email);
         const orderNumber = await getNextGlobalStoreOrderNumber('ИМ');
         const orderData = {
             ownerUid: String(storeOwnerUid),
@@ -2642,7 +2752,11 @@
                 }
                 return it;
             }),
-            total: Math.round(total * 100) / 100,
+            totalBeforeDiscount: Math.round(totalBeforeDiscount * 100) / 100,
+            discountPercent: discountCalc.percent > 0 ? discountCalc.percent : null,
+            discountAmount: discountCalc.amount > 0 ? discountCalc.amount : null,
+            firstOrderDiscountApplied: !!(discountCalc.eligible && discountCalc.amount > 0),
+            total: Math.round(discountCalc.finalTotal * 100) / 100,
             orderNumber,
             source: 'store',
             buyerName: name,
