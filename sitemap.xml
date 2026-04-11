@@ -56,12 +56,12 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luckyart.my-3d-print.ru/?tovar=krik-73sm</loc>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=brelok-krik-73sm</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luckyart.my-3d-print.ru/?tovar=krik-5-sm</loc>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=brelok-krik-5-sm</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -86,7 +86,12 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luckyart.my-3d-print.ru/?tovar=skelet-drakon</loc>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=brelok-skelet-drakon</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://luckyart.my-3d-print.ru/?tovar=brelok-kliker-zharenoe-yaytso</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
