@@ -628,6 +628,37 @@
         .writeoff-export-option { display: block; width: 100%; padding: 10px 14px; border: none; background: none; text-align: left; font-size: 13px; color: var(--color-text); cursor: pointer; transition: background 0.15s; }
         .writeoff-export-option:hover { background: var(--color-bg); }
 
+        /* Стили для всплывающего меню сводного акта передачи */
+        .summary-act-menu { 
+            position: absolute; 
+            left: 0; 
+            bottom: 100%; 
+            margin-bottom: 6px; 
+            min-width: 220px; 
+            background: #fff; 
+            border: 1px solid var(--color-border); 
+            border-radius: var(--radius); 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            z-index: 100000; 
+            overflow: visible; 
+        }
+        .summary-act-menu.hidden { display: none !important; }
+        .summary-act-option { 
+            display: block; 
+            width: 100%; 
+            padding: 10px 14px; 
+            border: none; 
+            background: none; 
+            text-align: left; 
+            font-size: 13px; 
+            color: var(--color-text); 
+            cursor: pointer; 
+            transition: background 0.15s; 
+        }
+        .summary-act-option:hover { 
+            background: var(--color-bg); 
+        }
+
         /* Changelog styles */
         .changelog-list { display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: #1e293b; }
         .changelog-item { padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; transition: box-shadow 0.2s ease; }
@@ -2227,16 +2258,16 @@ td:nth-last-child(2) {
 #writeoffTableBody td:nth-child(5) { text-align: left; }
 
 /* Кол-во, Цена продажи — сдвиг влево на 40px */
-#writeoffTableHead th:nth-child(6),
 #writeoffTableHead th:nth-child(7),
-#writeoffTableBody td:nth-child(6),
-#writeoffTableBody td:nth-child(7) { padding-left: 0; transform: translateX(-40px); }
-/* Сумма — сдвиг влево на 40px */
 #writeoffTableHead th:nth-child(8),
+#writeoffTableBody td:nth-child(7),
 #writeoffTableBody td:nth-child(8) { padding-left: 0; transform: translateX(-40px); }
-/* Примечание — сдвиг влево на 60px */
+/* Сумма — сдвиг влево на 40px */
 #writeoffTableHead th:nth-child(9),
-#writeoffTableBody td:nth-child(9) { padding-left: 0; transform: translateX(-60px); }
+#writeoffTableBody td:nth-child(9) { padding-left: 0; transform: translateX(-40px); }
+/* Примечание — сдвиг влево на 60px */
+#writeoffTableHead th:nth-child(10),
+#writeoffTableBody td:nth-child(10) { padding-left: 0; transform: translateX(-60px); }
 #writeoffTableHead th.th-sebest { text-align: left; white-space: normal; line-height: 1.25; }
 #writeoffTableBody td:last-child { padding: 8px; text-align: right; width: auto !important; min-width: 0; overflow: visible !important; }
 
@@ -5980,6 +6011,14 @@ body.store-page #storeRoot {
 .store-category-chip input[type="checkbox"] { margin: 0; cursor: pointer; }
 .store-category-chip label { cursor: pointer; margin: 0; }
 
+#selectRowsBtn {
+    height: 41px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* =============================================================================
    ИМ (index.html): планшет и мобильная адаптация
    Десктоп без изменений; ≤1024 — компактнее; ≤768 — выезжающее меню + полировка.
@@ -6260,3 +6299,86 @@ body.store-page #storeRoot {
         font-size: 18px;
     }
 }
+
+/* ПО УМОЛЧАНИЮ (Режим скрыт — ячейки физически сжимаются в 0 пикселей) */
+
+th.selection-column,
+td.selection-column {
+    display: table-cell !important; /* всегда держим тип ячейки */
+    width: 0px !important;
+    min-width: 0px !important;
+    max-width: 0px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important; /* прячем всё, что не влезает в 0 пикселей */
+    border: none !important; /* убираем границы, чтобы они не занимали 1-2 пикселя */
+}
+
+/* Полностью выключаем отображение самого чекбокса внутри */
+.selection-column input[type="checkbox"] {
+    display: none !important;
+}
+
+
+/* ПРИ НАЖАТИИ КНОПКИ (Режим активен — ячейки плавно или жестко раскрываются до 35px) */
+
+.show-selection th.selection-column,
+.show-selection td.selection-column {
+    width: 35px !important;
+    min-width: 35px !important;
+    max-width: 35px !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    padding: 0 !important;
+    background: transparent !important;
+    /* Возвращаем стандартную границу таблицы, если она у вас есть (например, снизу или сбоку) */
+    border-bottom: 1px solid #dee2e6 !important; 
+}
+
+/* Показываем красивые и аккуратные чекбоксы */
+.show-selection .selection-column input[type="checkbox"] {
+    display: inline-block !important;
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    max-width: 16px !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    appearance: checkbox !important;
+    -webkit-appearance: checkbox !important;
+    box-shadow: none !important;
+}
+
+/* Очистка от мусора */
+.selection-column input[type="checkbox"]::before,
+.selection-column input[type="checkbox"]::after {
+    display: none !important;
+    content: none !important;
+}
+
+/* 1. Делаем кнопку XLS идеально ровной по высоте с синей кнопкой (41px) */
+#exportXlsBtn, .btn-export-xls {
+    height: 41px !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Позиционируем меню строго под кнопкой "Сохранить в XLS" */
+.dropdown-menu, 
+[id*="menu" i], 
+[class*="dropdown" i] {
+    top: 100% !important; /* Спускаем меню ровно под нижний край кнопки */
+    bottom: auto !important; /* Отменяем открытие вверх */
+    left: 0 !important; /* Выравниваем по левому краю кнопки */
+    transform: none !important; /* Убираем возможные перекосы анимации Клайна */
+    margin-top: 4px !important; /* Небольшой аккуратный отступ */
+}
+
+/* На всякий случай добавим родителю кнопок относительный тип, чтобы меню не улетало на другой конец экрана */
+#exportXlsBtn {
+    position: relative !important;
+}
+
+
